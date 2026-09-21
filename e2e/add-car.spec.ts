@@ -1,48 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
 import { CAR_ANGLES } from "../lib/angles"
-
-/** A real JPEG, generated in the page so no fixture file is needed. */
-async function jpeg(page: Page, label = "x") {
-  const b64 = await page.evaluate(async (text) => {
-    const c = document.createElement("canvas")
-    c.width = 800
-    c.height = 600
-    const ctx = c.getContext("2d")!
-    ctx.fillStyle = "#3b6ea5"
-    ctx.fillRect(0, 0, 800, 600)
-    ctx.fillStyle = "#fff"
-    ctx.font = "48px sans-serif"
-    ctx.fillText(text, 40, 300)
-    const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), "image/jpeg", 0.9))
-    const buf = new Uint8Array(await blob.arrayBuffer())
-    let s = ""
-    buf.forEach((v) => (s += String.fromCharCode(v)))
-    return btoa(s)
-  }, label)
-  return { name: `${label}.jpg`, mimeType: "image/jpeg", buffer: Buffer.from(b64, "base64") }
-}
-
-async function signIn(page: Page) {
-  await page.goto("/login")
-  await page.getByRole("button", { name: /continue with google/i }).click()
-  await page.waitForURL("**/dashboard")
-}
-
-async function startCar(page: Page, reg: string) {
-  await page.goto("/cars/new")
-  await page.getByTestId("plate-file-input").setInputFiles(await jpeg(page, "plate"))
-  await page.getByLabel("Registration number").fill(reg)
-  await page.getByRole("button", { name: /look up this car/i }).click()
-  await expect(page.getByText("Confirm the car").first()).toBeVisible().catch(() => {})
-  await expect(page.getByTestId("variant-option").first()).toBeVisible()
-}
-
-async function pickVariantAndContinue(page: Page) {
-  await page.getByTestId("variant-option").first().click()
-  await expect(page.getByTestId("variant-option").first()).toHaveAttribute("aria-pressed", "true")
-  await page.getByRole("button", { name: "Continue", exact: true }).click()
-}
+import { jpeg, jpegSize, pickVariantAndContinue, signIn, startCar } from "./helpers"
 
 async function captureAll(page: Page) {
   await page.getByRole("button", { name: /start guided capture/i }).click()
@@ -196,4 +155,29 @@ test("emulated Fast 3G: plate photo to published in under 2 minutes with only th
   const elapsedSec = (Date.now() - started) / 1000
   console.log(`emulated Fast 3G, plate photo to published: ${elapsedSec.toFixed(1)}s (excludes human typing time)`)
   expect(elapsedSec).toBeLessThan(120)
+})
+
+test("carousel photos download as 4:5 crops", async ({ page }) => {
+  await signIn(page)
+  await startCar(page, "TN 33 GH 7788")
+  await pickVariantAndContinue(page)
+
+  await page.getByRole("button", { name: /start guided capture/i }).click()
+  for (const angle of CAR_ANGLES.slice(0, 3)) await page.getByTestId("camera-file-input").setInputFiles(await jpeg(page, angle))
+  await page.getByRole("button", { name: /^done$/i }).click()
+  await expect(page.getByTestId("upload-count")).toHaveText("3 of 12 uploaded", { timeout: 60_000 })
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
+  await page.getByLabel("Asking price (₹)").fill("480000")
+  await page.getByLabel("Kilometres driven").fill("30000")
+  await page.getByRole("button", { name: "Publish" }).click()
+  await expect(page.getByTestId("published-title")).toBeVisible()
+
+  const files: Buffer[] = []
+  page.on("download", async (d) => {
+    const path = await d.path()
+    if (path) files.push((await import("node:fs")).readFileSync(path))
+  })
+  await page.getByRole("button", { name: /download photos/i }).click()
+  await expect.poll(() => files.length, { timeout: 30_000 }).toBe(3)
+  for (const f of files) expect(jpegSize(f)).toEqual({ width: 1080, height: 1350 })
 })

@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm"
 
 import { CAR_ANGLES, type CarAngle } from "../angles.ts"
-import { decrypt } from "../crypto/index.ts"
+import { tryDecrypt } from "../crypto/index.ts"
 import { carMedia, cars, variants } from "../db/schema/index.ts"
 import { scopedDb } from "../db/scoped.ts"
 import { unscopedDb } from "../db/client.ts"
@@ -58,7 +58,7 @@ export async function getCarState(dealerId: string, carId: string): Promise<CarS
   return {
     id: car.id,
     status: car.status,
-    reg: car.regNumber ? formatReg(decrypt(car.regNumber)) : "",
+    reg: formatReg(tryDecrypt(car.regNumber) ?? ""),
     year: car.year,
     fuel: car.fuel,
     transmission: car.transmission,

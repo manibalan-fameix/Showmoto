@@ -44,3 +44,40 @@ Choices made without asking, newest first within each phase. Reverse any of them
 - Theme validation: text colours are auto-adjusted to WCAG AA (4.5:1). A primary colour under 3:1 against white is rejected because buttons and links would vanish. The "near-black" fallback goes to pure black in the mid-tone band where near-black cannot reach 4.5:1.
 - Radius options: none, sm, md (preset default), lg.
 - A user belongs to one dealer in v1; if several links exist the earliest wins.
+
+## Phase 2: variants, RC, matching
+
+**Read before trusting**
+- `data/variants/chennai-top40.csv` (45 models, 446 rows) was written from my own knowledge, not from manufacturer data. Engine sizes, fuel and transmission pairings and especially the model-year ranges are approximate. Have someone who knows the Chennai resale market skim it. It only carries fields I am fairly sure of (engine cc, fuel, transmission, body type, seats). No feature lists or detailed specs are included.
+- Models still on sale are given a `year_to` of 2024 (the data cut-off) instead of blank. Year is a soft signal in matching, so a 2025 car still matches, but update the file if you want it exact.
+- The Surepass adapter (`lib/rc/surepass.ts`) is written from public documentation and has never been called with a real key. The endpoint and field names are unverified. It maps several candidate field names defensively. Make one real call and compare against a known vehicle's RC before relying on it.
+- Nothing that calls the vision model has been run against the live API, because there was no key. The client is unit-tested with fakes: valid JSON, schema violations, refusals, truncation and API errors all return null instead of throwing.
+
+**Choices**
+- Added dependencies: `@anthropic-ai/sdk` (the vision model; Section 2 says "a vision model" without naming one), `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` (R2, named in Section 2), `pg-boss` (Section 2), `@playwright/test` (Section 2).
+- Vision model defaults to `claude-opus-5` (override with `VISION_MODEL`), at low effort because these are short extraction tasks on the dealer's waiting path. Refusal fallbacks are not enabled: a refusal is treated as "no answer" and the dealer types the value.
+- Variant matching is rules first (make, model, variant, fuel, transmission, year, with typo tolerance). The model is only asked when the top two results are close, and it can only reorder catalogue ids we send. Ids it invents are discarded, so it cannot invent a variant or its specs.
+- A variant must be chosen before publishing. If a car is not in the catalogue, add it to the CSV. There is no free-text car.
+- RC data is cached per car for 30 days. Rate limits: 40 lookups per dealer per hour (counted in the database) and 25 per IP per hour (in memory, per server instance).
+- The mock RC provider never sets `rc_verified_at`, so mock data can never earn the "Verified from RTO records" badge.
+- RC records keep no owner name, address, chassis or engine number. Adapters only read the fields in `RcRecord`. The raw provider response is stored encrypted for the 30-day cache.
+- Duplicate plate detection is not done: plates are encrypted with a random IV, so they cannot be compared without adding a blind index. Ask if you want one.
+
+## Phase 3: add-a-car flow
+
+**Choices**
+- Schema additions: `cars.year` is nullable (a draft has no year until the RC or dealer supplies it), `cars.caption`, `car_media.analysis`, and unique keys on variants (natural key) and `car_media.r2_key` (makes upload retries idempotent).
+- Uploads: the browser asks a server action for a slot and a presigned URL, sends the file straight to storage, then confirms. The server checks the object exists and is a sane size before marking it uploaded. Photos are resized to 1920px and re-encoded on the device, which also strips EXIF location data.
+- Offline queue: IndexedDB, one upload at a time, cover photo first, video last, exponential backoff, resumes after a closed tab. It runs for the whole admin session, so uploads continue while the dealer navigates. There is no service worker yet, so uploads pause when the app is closed and resume next time it opens (Phase 6, PWA).
+- Publishing needs only the cover photo (Front 3/4) to have landed. A confirmed upload counts even if the screen has not refreshed yet.
+- Publishing runs in one transaction: live-car cap check, canonical slug (`2017-maruti-baleno-alpha-tn11`, numeric suffix on collision), status change and the append-only price event. Re-publishing does not add a second "listed" event.
+- Development storage: with no R2 keys and `NODE_ENV=development`, files go to `.local-uploads/` through `/api/dev-storage` and are served from `/api/t/media`. Both return 404 whenever R2 is configured or in production.
+- Carousel: 4:5 crops are made on the phone at share time, so nothing extra is stored or paid for. Web Share with files is used when the browser supports it, with download and copy as fallbacks.
+- Caption: written by the model when a key is set, but only accepted if it contains the exact link and price and adds no other URLs, and does not claim RC verification the car has not earned. Otherwise a deterministic template is used.
+- Short link: `/{code}` on a tenant host 301s to the canonical URL in `proxy.ts`. The lookup is filtered to that dealer's own cars, so a code on one dealer's subdomain can never resolve another dealer's car. Sold cars still resolve; drafts and archived cars do not.
+- The canonical car page is a basic placeholder (hero, price, facts). The full buyer page is Phase 4.
+- Video: `pnpm worker` runs a pg-boss consumer that makes 360p and 720p HLS plus a poster and asks the model which of the 12 angles the video shows. Analysis frames are held in memory only; they are never stored and never used as listing photos. The worker reads the whole original into memory (400 MB cap) before processing; move to streaming if that becomes a problem.
+- The worker and its ffmpeg command construction are unit-tested, and the job logic is tested against a real database with a fake ffmpeg. **It has not been run with a real ffmpeg**, because none is installed here.
+- Dev sign-in bypass now loads the real seeded dealer when a database exists, so the whole flow can write real rows.
+- Server actions accept request bodies up to 2 MB (plate photos travel to the OCR action as base64).
+- E2E runs use their own port and build directory and hide the Next.js dev badge, which otherwise covers the camera's Skip button.

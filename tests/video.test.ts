@@ -76,7 +76,7 @@ describe("angle analysis", () => {
     expect(await analyseAngles({ json: vi.fn(async () => null) } as never, [frame])).toBeNull()
   })
   it("sends the frames and the full angle list to the model", async () => {
-    const json = vi.fn(async (_req: { images: unknown[]; prompt: string }) => ({ seen: [] as string[] }))
+    const json = vi.fn(async (req: { images: unknown[]; prompt: string }) => ({ seen: [] as string[], echo: req.prompt.length }))
     await analyseAngles({ json } as never, [frame, frame])
     const req = json.mock.calls[0][0]
     expect(req.images).toHaveLength(2)

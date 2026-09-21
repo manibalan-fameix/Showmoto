@@ -191,6 +191,28 @@ describe.skipIf(!url)("add-car server logic (live database)", () => {
     })
   })
 
+  describe("short links", () => {
+    it("resolve only within the dealer that owns the car, and only for published cars", async () => {
+      const { resolveShortCode } = await import("../lib/tenant/dealer")
+      const mk = async (dealer: string, status: "draft" | "live" | "sold" | "archived", code: string) => {
+        await m.db.unscopedDb.insert(m.s.cars).values({ dealerId: dealer, year: 2018, status, shortCode: `${code}${tag}`.slice(0, 6), slug: `sl-${code}-${tag}` })
+        return `${code}${tag}`.slice(0, 6)
+      }
+      const [slugA, slugB] = [`cars-a-${tag}`, `cars-b-${tag}`]
+      const live = await mk(A, "live", "l")
+      const sold = await mk(A, "sold", "s")
+      const draft = await mk(A, "draft", "d")
+      const archived = await mk(A, "archived", "a")
+      expect(await resolveShortCode(slugA, live)).toBe(`sl-l-${tag}`)
+      expect(await resolveShortCode(slugA, sold)).toBe(`sl-s-${tag}`) // old links keep working
+      expect(await resolveShortCode(slugA, draft)).toBeNull()
+      expect(await resolveShortCode(slugA, archived)).toBeNull()
+      // The same code on another dealer's subdomain must never resolve.
+      expect(await resolveShortCode(slugB, live)).toBeNull()
+      expect(await resolveShortCode("no-such-dealer", live)).toBeNull()
+    })
+  })
+
   describe("publishing", () => {
     const ready = async (dealer: string, reg: string) => {
       const carId = await m.create.createDraftCar(dealer, reg)

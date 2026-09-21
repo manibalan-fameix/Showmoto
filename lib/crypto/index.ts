@@ -28,3 +28,17 @@ export function decrypt(payload: string): string {
 
 export const encryptJson = (value: unknown) => encrypt(JSON.stringify(value))
 export const decryptJson = <T>(payload: string): T => JSON.parse(decrypt(payload)) as T
+
+/**
+ * Decrypt for display. If the key changed or the value is corrupt, return null instead of
+ * throwing, so one unreadable row cannot take a whole page down. Never logs the value.
+ */
+export function tryDecrypt(payload: string | null | undefined): string | null {
+  if (!payload) return null
+  try {
+    return decrypt(payload)
+  } catch {
+    console.error("could not decrypt a stored value (wrong ENCRYPTION_KEY or corrupted data)")
+    return null
+  }
+}

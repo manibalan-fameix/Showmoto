@@ -1,21 +1,65 @@
-# Next.js template
+# Fameix
 
-This is a Next.js template with shadcn/ui.
+White-label used-car listing tool for independent dealers in Chennai. A dealer adds a car from
+their phone in about two minutes and gets a public page under their own brand, a short share link,
+an Instagram caption and a 4:5 photo set. It is a tool each dealer owns, not a marketplace.
 
-## Adding components
+Built with Next.js 16 (App Router), shadcn/ui (Base UI), Drizzle + Postgres, Auth.js, Cloudflare R2
+and pg-boss. Read `DECISIONS.md` for the choices made along the way and what is still unverified.
 
-To add components to your app, run the following command:
+## Local setup
+
+Needs Node 24, pnpm and a Postgres database.
 
 ```bash
-npx shadcn@latest add button
+pnpm install
+cp .env.example .env.local        # then fill in DATABASE_URL, AUTH_SECRET, ENCRYPTION_KEY at least
+pnpm db:migrate                   # apply migrations
+pnpm db:seed                      # two demo dealers with different themes
+pnpm db:import-variants           # the variants master table (45 models, ~450 rows)
+pnpm dev
 ```
 
-This will place the ui components in the `components` directory.
+- Admin: `http://localhost:3000/login`. With no Google keys set, in development the sign-in button
+  opens the seeded demo dealer without signing in (never active in production).
+- Dealer sites: `http://sri-murugan.localhost:3000` and `http://chennai-prime.localhost:3000`
+  (use Chrome; some browsers do not resolve `*.localhost`).
+- No R2 keys, RC provider or vision key are needed in development: uploads go to `.local-uploads`,
+  RC lookups use the mock provider, and plate reading falls back to typing the number.
 
-## Using components
+### Video worker (optional)
 
-To use the components in your app, import them as follows:
+Walkaround videos are converted to streaming HLS and checked for missing angles by a background
+worker. It needs `ffmpeg` and `ffprobe` on the PATH.
 
-```tsx
-import { Button } from "@/components/ui/button";
+```bash
+pnpm worker
 ```
+
+### Extending the variant data
+
+Add rows to `data/variants/chennai-top40.csv` (or another file) and run
+`pnpm db:import-variants [file.csv]`. Re-running updates existing rows in place. Extra columns named
+`spec.<Group>.<Name>` and `features.<Group>` (values split on `|`) are stored as specs and features.
+
+## Tests
+
+```bash
+pnpm typecheck && pnpm lint
+pnpm test                                    # unit tests
+TEST_DATABASE_URL=postgres://... pnpm test   # also runs the live-database tests
+```
+
+The live-database tests need a **disposable** migrated database: they insert rows, and price events
+are append-only so they cannot be cleaned up.
+
+End-to-end tests (Playwright) run the add-a-car flow on an emulated Android phone, including an
+emulated 3G run and an offline recovery. They need a migrated, seeded database:
+
+```bash
+pnpm exec playwright install chromium
+DATABASE_URL=... ENCRYPTION_KEY=... pnpm test:e2e
+```
+
+They start their own dev server on port 3100 with a separate build directory, so they can run next
+to a dev server you already have open.

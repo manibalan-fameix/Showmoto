@@ -11,7 +11,7 @@ import { carMedia, cars } from "@/lib/db/schema"
 import { scopedDb } from "@/lib/db/scoped"
 import { HERO_ANGLE } from "@/lib/angles"
 import { formatReg } from "@/lib/reg"
-import { decrypt } from "@/lib/crypto"
+import { tryDecrypt } from "@/lib/crypto"
 import { getStorage } from "@/lib/storage"
 import { formatInr } from "@/lib/share/caption"
 import { getVariantsByIds } from "@/lib/variants/repo"
@@ -78,7 +78,7 @@ export default async function CarsPage() {
                           {[car.year, car.variantId ? label.get(car.variantId) : null].filter(Boolean).join(" ") || t.untitled}
                         </p>
                         <p className="truncate text-sm text-muted-foreground">
-                          {car.regNumber ? formatReg(decrypt(car.regNumber)) : ""} · {car.askingPrice ? `₹${formatInr(car.askingPrice)}` : t.priceOnRequest}
+                          {formatReg(tryDecrypt(car.regNumber) ?? "")} · {car.askingPrice ? `₹${formatInr(car.askingPrice)}` : t.priceOnRequest}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1">

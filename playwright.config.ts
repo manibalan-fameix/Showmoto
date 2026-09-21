@@ -19,7 +19,20 @@ export default defineConfig({
     ...devices["Pixel 7"],
     trace: "retain-on-failure",
   },
-  projects: [{ name: "android-chrome", use: { browserName: "chromium" } }],
+  projects: [
+    // No camera available: exercises the file-input fallback that older or locked-down phones get.
+    { name: "android-chrome", testIgnore: /camera\.spec\.ts/, use: { browserName: "chromium" } },
+    // Chromium's fake camera stream: exercises the live getUserMedia path with the on-screen outline.
+    {
+      name: "android-chrome-camera",
+      testMatch: /camera\.spec\.ts/,
+      use: {
+        browserName: "chromium",
+        permissions: ["camera"],
+        launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
+      },
+    },
+  ],
   webServer: {
     command: `pnpm exec next dev -p ${PORT}`,
     url: `http://localhost:${PORT}/login`,
@@ -27,6 +40,7 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       NEXT_DIST_DIR: ".next-e2e",
+      E2E: "1",
       ROOT_DOMAIN: `localhost:${PORT}`,
       DATABASE_URL: process.env.DATABASE_URL ?? "",
       ENCRYPTION_KEY: process.env.ENCRYPTION_KEY ?? "",
