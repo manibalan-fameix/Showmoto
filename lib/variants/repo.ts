@@ -1,3 +1,5 @@
+import { eq, inArray } from "drizzle-orm"
+
 import { unscopedDb } from "../db/client"
 import { variants } from "../db/schema"
 import type { VariantRow } from "./match"
@@ -18,4 +20,15 @@ export async function getAllVariants(): Promise<VariantRow[]> {
     .from(variants)
   cache = { rows, at: Date.now() }
   return rows
+}
+
+export type VariantFull = typeof variants.$inferSelect
+
+export async function getVariantById(id: string): Promise<VariantFull | null> {
+  const [row] = await unscopedDb.select().from(variants).where(eq(variants.id, id)).limit(1)
+  return row ?? null
+}
+
+export async function getVariantsByIds(ids: string[]): Promise<VariantFull[]> {
+  return ids.length ? unscopedDb.select().from(variants).where(inArray(variants.id, ids)) : []
 }

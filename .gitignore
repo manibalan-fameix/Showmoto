@@ -13,6 +13,10 @@
 
 # next.js
 /.next/
+/.next-e2e/
+/.local-uploads/
+/test-results/
+/playwright-report/
 /out/
 
 # production

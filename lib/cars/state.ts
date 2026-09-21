@@ -1,11 +1,12 @@
 import { asc, eq } from "drizzle-orm"
 
-import { CAR_ANGLES, HERO_ANGLE, type CarAngle } from "../angles.ts"
+import { CAR_ANGLES, type CarAngle } from "../angles.ts"
 import { decrypt } from "../crypto/index.ts"
 import { carMedia, cars, variants } from "../db/schema/index.ts"
 import { scopedDb } from "../db/scoped.ts"
 import { unscopedDb } from "../db/client.ts"
 import { getStorage } from "../storage/index.ts"
+import { isLanded, publishReadiness, type Readiness } from "./readiness.ts"
 import { formatReg } from "../reg.ts"
 
 export type MediaState = {
@@ -37,19 +38,6 @@ export type CarState = {
   slug: string
   caption: string | null
   media: MediaState[]
-}
-
-/** True when a photo has landed in storage: publishing only needs the hero to reach this point. */
-export const isLanded = (m: Pick<MediaState, "status">) => m.status === "uploaded" || m.status === "ready"
-
-export type Readiness = { ready: boolean; missing: ("variant" | "year" | "hero")[] }
-
-export function publishReadiness(s: Pick<CarState, "variant" | "year" | "media">): Readiness {
-  const missing: Readiness["missing"] = []
-  if (!s.variant) missing.push("variant")
-  if (!s.year) missing.push("year")
-  if (!s.media.some((m) => m.kind === "photo" && m.angle === HERO_ANGLE && isLanded(m))) missing.push("hero")
-  return { ready: missing.length === 0, missing }
 }
 
 /** Load one of the dealer's cars with its variant and media. Returns null if it is not theirs. */
@@ -96,4 +84,4 @@ export async function getCarState(dealerId: string, carId: string): Promise<CarS
   }
 }
 
-export { CAR_ANGLES }
+export { CAR_ANGLES, isLanded, publishReadiness, type Readiness }

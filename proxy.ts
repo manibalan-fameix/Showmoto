@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { getRootDomain } from "./lib/env"
+import { looksLikeShortCode } from "./lib/slug"
 import { TENANT_HEADER, classifyHost } from "./lib/tenant/host"
-import { resolveCustomDomain } from "./lib/tenant/dealer"
+import { resolveCustomDomain, resolveShortCode } from "./lib/tenant/dealer"
 
 const notFound = () => new NextResponse("Not found", { status: 404 })
 
@@ -53,6 +54,17 @@ export async function proxy(request: NextRequest) {
       if (pathname.startsWith("/api/")) return notFound()
 
       const url = request.nextUrl.clone()
+
+      // Short share link: /k7x2m -> 301 to the canonical car URL (query string, e.g. UTM, is kept).
+      const segment = pathname.slice(1)
+      if (looksLikeShortCode(segment)) {
+        const carSlug = await resolveShortCode(slug, segment)
+        if (carSlug) {
+          url.pathname = `/${carSlug}`
+          return NextResponse.redirect(url, 301)
+        }
+      }
+
       url.pathname = `/sites/${slug}${pathname === "/" ? "" : pathname}`
       return NextResponse.rewrite(url, { request: { headers } })
     }

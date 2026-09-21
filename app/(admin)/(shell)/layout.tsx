@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { AdminBreadcrumb } from "@/components/admin/admin-breadcrumb"
 import { desc } from "drizzle-orm"
 
+import { UploadProvider } from "@/components/capture/upload-provider"
 import { AppSidebar } from "@/components/app-sidebar"
 import type { RecentCar } from "@/components/nav-projects"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -57,7 +58,10 @@ export default async function ShellLayout({ children }: { children: React.ReactN
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
+        {/* Uploads run for the whole admin session, so they carry on while the dealer navigates. */}
+        <UploadProvider>
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
+        </UploadProvider>
       </SidebarInset>
     </SidebarProvider>
   )
