@@ -1,10 +1,13 @@
-import type * as React from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Car01Icon } from "@hugeicons/core-free-icons"
+"use client"
 
-import { NavMain } from "@/components/admin/nav-main"
-import { NavSecondary } from "@/components/admin/nav-secondary"
-import { NavUser } from "@/components/admin/nav-user"
+import Link from "next/link"
+import * as React from "react"
+
+import { navMain } from "@/components/admin/nav-config"
+import { NavMain } from "@/components/nav-main"
+import { NavProjects, type RecentCar } from "@/components/nav-projects"
+import { NavSecondary } from "@/components/nav-secondary"
+import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -14,26 +17,30 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Car01Icon } from "@hugeicons/core-free-icons"
 
-// Layout from the shadcn "sidebar-08" block (inset variant), fed with dealer data.
+// shadcn "sidebar-08" block, populated with the signed-in dealer's data.
 export function AppSidebar({
   dealerName,
   planLabel,
   publicUrl,
   user,
+  recentCars,
   ...props
 }: {
   dealerName: string
   planLabel: string
   publicUrl: string
   user: { name: string; email: string }
+  recentCars: RecentCar[]
 } & React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<div />}>
+            <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <HugeiconsIcon icon={Car01Icon} strokeWidth={2} className="size-4" />
               </div>
@@ -46,7 +53,8 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain />
+        <NavMain items={navMain} />
+        <NavProjects cars={recentCars} />
         <NavSecondary publicUrl={publicUrl} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
