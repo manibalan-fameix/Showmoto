@@ -31,6 +31,9 @@ export const copy = {
   },
   admin: {
     nav: {
+      menu: "Menu",
+      viewPage: "View my page",
+      adminCrumb: "Dealer admin",
       dashboard: "Dashboard",
       cars: "Cars",
       leads: "Leads",

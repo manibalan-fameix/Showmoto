@@ -1,93 +1,56 @@
-"use client"
+import type * as React from "react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Car01Icon } from "@hugeicons/core-free-icons"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import {
-  ChartLineData01Icon,
-  Car01Icon,
-  Home01Icon,
-  Logout02Icon,
-  RouteIcon,
-  Settings02Icon,
-  UserMultiple02Icon,
-} from "@hugeicons/core-free-icons"
-
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { NavMain } from "@/components/admin/nav-main"
+import { NavSecondary } from "@/components/admin/nav-secondary"
+import { NavUser } from "@/components/admin/nav-user"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { copy } from "@/lib/copy"
-import { signOutAction } from "@/lib/auth/actions"
 
-type NavItem = { label: string; href: string; icon: IconSvgElement; enabled: boolean }
-
-const nav: NavItem[] = [
-  { label: copy.admin.nav.dashboard, href: "/dashboard", icon: Home01Icon, enabled: true },
-  { label: copy.admin.nav.cars, href: "/cars", icon: Car01Icon, enabled: false },
-  { label: copy.admin.nav.leads, href: "/leads", icon: UserMultiple02Icon, enabled: false },
-  { label: copy.admin.nav.transfers, href: "/transfers", icon: RouteIcon, enabled: false },
-  { label: copy.admin.nav.reports, href: "/reports", icon: ChartLineData01Icon, enabled: false },
-  { label: copy.admin.nav.settings, href: "/settings", icon: Settings02Icon, enabled: false },
-]
-
+// Layout from the shadcn "sidebar-08" block (inset variant), fed with dealer data.
 export function AppSidebar({
   dealerName,
-  userLabel,
+  planLabel,
+  publicUrl,
+  user,
+  ...props
 }: {
   dealerName: string
-  userLabel: string
-}) {
-  const pathname = usePathname()
-
+  planLabel: string
+  publicUrl: string
+  user: { name: string; email: string }
+} & React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar>
+    <Sidebar variant="inset" {...props}>
       <SidebarHeader>
-        <p className="truncate px-2 py-1 font-semibold">{dealerName}</p>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" render={<div />}>
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <HugeiconsIcon icon={Car01Icon} strokeWidth={2} className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">{dealerName}</span>
+                <span className="truncate text-xs">{planLabel}</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {nav.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  {item.enabled ? (
-                    <SidebarMenuButton render={<Link href={item.href} />} isActive={pathname.startsWith(item.href)}>
-                      <HugeiconsIcon icon={item.icon} />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  ) : (
-                    <SidebarMenuButton disabled aria-disabled>
-                      <HugeiconsIcon icon={item.icon} />
-                      <span>{item.label}</span>
-                      <Badge variant="secondary" className="ml-auto">
-                        {copy.admin.nav.soon}
-                      </Badge>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavMain />
+        <NavSecondary publicUrl={publicUrl} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <p className="truncate px-2 text-xs text-muted-foreground">{userLabel}</p>
-        <form action={signOutAction}>
-          <Button type="submit" variant="ghost" className="w-full justify-start">
-            <HugeiconsIcon icon={Logout02Icon} data-icon="inline-start" />
-            {copy.auth.signOut}
-          </Button>
-        </form>
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )
