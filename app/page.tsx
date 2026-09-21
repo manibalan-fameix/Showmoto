@@ -1,23 +1,20 @@
-import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
+import Link from "next/link"
 
-export default function Page() {
+import { buttonVariants } from "@/components/ui/button"
+import { copy } from "@/lib/copy"
+import { adminUrl } from "@/lib/env"
+import { cn } from "@/lib/utils"
+
+// Marketing placeholder for the root domain.
+export default function Home() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <div className="mt-2 flex gap-2">
-            <Button>Button</Button>
-            <ThemeToggle />
-          </div>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle light/dark mode)
-        </div>
-      </div>
-    </div>
+    <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center gap-6 p-6">
+      <p className="text-sm font-medium text-primary">{copy.brand.name}</p>
+      <h1 className="text-3xl font-semibold tracking-tight">{copy.marketing.heading}</h1>
+      <p className="text-muted-foreground">{copy.marketing.body}</p>
+      <Link href={adminUrl("/login")} className={cn(buttonVariants({ size: "lg" }), "w-fit")}>
+        {copy.marketing.cta}
+      </Link>
+    </main>
   )
 }
