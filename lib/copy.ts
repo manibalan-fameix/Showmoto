@@ -26,6 +26,7 @@ export const copy = {
     signInBody: "Sign in with your Google account to manage your cars and leads.",
     signInGoogle: "Continue with Google",
     signOut: "Sign out",
+    devBypass: "Development mode: Google sign-in is not configured, so this button opens a demo dealer without signing in.",
     notConfigured: "Sign-in is not configured yet. Add the Google keys to the environment.",
   },
   admin: {

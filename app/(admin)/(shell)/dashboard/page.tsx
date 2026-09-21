@@ -27,7 +27,7 @@ export default async function DashboardPage() {
   }
 
   const { dealer, plan } = ctx
-  const live = await scopedDb(dealer.id).cars.select(eq(cars.status, "live"))
+  const live = ctx.devBypass ? [] : await scopedDb(dealer.id).cars.select(eq(cars.status, "live"))
   const publicUrl = tenantUrl(dealer.slug)
 
   return (
