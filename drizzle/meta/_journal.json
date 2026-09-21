@@ -22,6 +22,13 @@
       "when": 1790008427822,
       "tag": "0002_phase2_variants_media",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790009056864,
+      "tag": "0003_car_caption",
+      "breakpoints": true
     }
   ]
 }

@@ -17,8 +17,10 @@ export type DealerContext =
       dealer: typeof dealers.$inferSelect
       role: "owner" | "staff"
       plan: ReturnType<typeof getPlan>
-      /** Dev-only demo session: no database rows exist for it, so do not query by its dealer id. */
+      /** Dev-only demo session (no Google sign-in). */
       devBypass?: boolean
+      /** False only for the in-memory demo dealer: it has no database row, so never write against its id. */
+      dealerInDb: boolean
     }
 
 /**
@@ -28,7 +30,14 @@ export type DealerContext =
  */
 export const getDealerContext = cache(async (): Promise<DealerContext> => {
   if (isDevBypassEnabled() && (await cookies()).get(DEV_BYPASS_COOKIE)) {
-    return { status: "ok", user: DEV_USER, dealer: DEV_DEALER, role: "owner", plan: getPlan(DEV_DEALER.plan), devBypass: true }
+    // Use the real seeded dealer when a database is available, so the whole flow can write rows.
+    try {
+      const [row] = await unscopedDb.select().from(dealers).where(eq(dealers.slug, DEV_DEALER.slug)).limit(1)
+      if (row) return { status: "ok", user: DEV_USER, dealer: row, role: "owner", plan: getPlan(row.plan), devBypass: true, dealerInDb: true }
+    } catch {
+      // No database configured or reachable: fall through to the in-memory demo dealer.
+    }
+    return { status: "ok", user: DEV_USER, dealer: DEV_DEALER, role: "owner", plan: getPlan(DEV_DEALER.plan), devBypass: true, dealerInDb: false }
   }
   const session = await auth()
   const id = session?.user?.id
@@ -43,5 +52,5 @@ export const getDealerContext = cache(async (): Promise<DealerContext> => {
     .limit(1)
 
   if (!row) return { status: "no-dealer", user }
-  return { status: "ok", user, dealer: row.dealer, role: row.role, plan: getPlan(row.dealer.plan) }
+  return { status: "ok", user, dealer: row.dealer, role: row.role, plan: getPlan(row.dealer.plan), dealerInDb: true }
 })

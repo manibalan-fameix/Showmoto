@@ -42,6 +42,8 @@ export const cars = pgTable(
     listedAt: timestamp("listed_at", { withTimezone: true }),
     soldAt: timestamp("sold_at", { withTimezone: true }),
     soldPrice: integer("sold_price"),
+    /** Instagram caption generated at publish (includes the short link). */
+    caption: text("caption"),
   },
   (t) => [
     index("cars_dealer_idx").on(t.dealerId),

@@ -5,7 +5,7 @@ import { cars, rcLookups } from "../db/schema"
 import { scopedDb } from "../db/scoped"
 import { allow } from "../rate-limit"
 import { isValidReg } from "../reg"
-import { getRcProvider, type RcProvider } from "./provider"
+import { getRcProvider, providerByName, type RcProvider } from "./provider"
 import { RcError, type RcRecord } from "./types"
 
 const CACHE_DAYS = 30
@@ -73,4 +73,14 @@ async function applyToCar(dealerId: string, carId: string, r: RcRecord, provider
     },
     eq(cars.id, carId),
   )
+}
+
+/** The normalised RC record from this car's latest cached lookup, if any. No provider call. */
+export async function getCachedRcRecord(dealerId: string, carId: string): Promise<RcRecord | null> {
+  const db = scopedDb(dealerId)
+  const [car] = await db.cars.select(eq(cars.id, carId), { limit: 1 })
+  const [row] = await db.rcLookups.select(eq(rcLookups.carId, carId), { orderBy: [desc(rcLookups.fetchedAt)], limit: 1 })
+  if (!car?.regNumber || !row) return null
+  const provider = providerByName(row.provider)
+  return provider ? provider.normalize(decryptJson(row.rawResponse), decrypt(car.regNumber)) : null
 }

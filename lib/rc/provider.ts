@@ -20,3 +20,14 @@ export function getRcProvider(env: Record<string, string | undefined> = process.
   if (name === "surepass") return new SurepassRcProvider({ apiKey: env.RC_API_KEY, baseUrl: env.RC_BASE_URL })
   throw new Error(`Unknown RC_PROVIDER "${name}". Use "mock" or "surepass".`)
 }
+
+/** Provider instance for a name stored with a cached lookup, or null if it can't be built here. */
+export function providerByName(name: string, env: Record<string, string | undefined> = process.env): RcProvider | null {
+  try {
+    if (name === "mock") return new MockRcProvider()
+    if (name === "surepass") return new SurepassRcProvider({ apiKey: env.RC_API_KEY, baseUrl: env.RC_BASE_URL })
+  } catch {
+    // Missing key: cannot normalise that provider's cached data.
+  }
+  return null
+}

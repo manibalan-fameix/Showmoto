@@ -32,7 +32,7 @@ export default async function ShellLayout({ children }: { children: React.ReactN
 
   let recentCars: RecentCar[] = []
   if (ctx.status === "ok") {
-    const rows = ctx.devBypass
+    const rows = !ctx.dealerInDb
       ? DEMO_CARS
       : await scopedDb(ctx.dealer.id).cars.select(undefined, { orderBy: [desc(cars.listedAt)], limit: 4 })
     // Only id, year, plate prefix and short code go to the client. Never the encrypted reg number.

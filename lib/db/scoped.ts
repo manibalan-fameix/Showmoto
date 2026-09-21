@@ -2,7 +2,7 @@ import { and, count, eq, exists, inArray, type SQL } from "drizzle-orm"
 import type { AnyPgColumn, PgTable } from "drizzle-orm/pg-core"
 import { z } from "zod"
 
-import { unscopedDb, type Db } from "./client"
+import { unscopedDb, type Db } from "./client.ts"
 import {
   carMedia,
   carViews,
@@ -13,7 +13,7 @@ import {
   priceEvents,
   rcLookups,
   rcTransfers,
-} from "./schema"
+} from "./schema/index.ts"
 
 export class TenantViolationError extends Error {
   constructor(message: string) {
@@ -95,6 +95,18 @@ export function scopedDb(dealerId: string, db: Db = unscopedDb) {
 
   function child<T extends ChildTable>(table: T) {
     const scope = carScope(table.carId)
+    const ownedRows = async (values: T["$inferInsert"] | T["$inferInsert"][]) => {
+      const rows = (Array.isArray(values) ? values : [values]) as T["$inferInsert"][]
+      const carIds = [...new Set(rows.map((r) => (r as { carId: string }).carId))]
+      const owned = await db
+        .select({ id: cars.id })
+        .from(cars)
+        .where(and(eq(cars.dealerId, dealerId), inArray(cars.id, carIds)))
+      if (owned.length !== carIds.length) {
+        throw new TenantViolationError("Attempted to write to a car outside this dealer")
+      }
+      return rows
+    }
     return {
       select: (where?: SQL, opts?: SelectOptions) => read(table, and(scope, where) as SQL, opts),
       count: async (where?: SQL) => {
@@ -103,16 +115,13 @@ export function scopedDb(dealerId: string, db: Db = unscopedDb) {
       },
       /** Verifies every car_id belongs to this dealer before inserting. */
       insert: async (values: T["$inferInsert"] | T["$inferInsert"][]) => {
-        const rows = Array.isArray(values) ? values : [values]
-        const carIds = [...new Set(rows.map((r) => (r as { carId: string }).carId))]
-        const owned = await db
-          .select({ id: cars.id })
-          .from(cars)
-          .where(and(eq(cars.dealerId, dealerId), inArray(cars.id, carIds)))
-        if (owned.length !== carIds.length) {
-          throw new TenantViolationError("Attempted to write to a car outside this dealer")
-        }
-        return db.insert(table).values(rows as T["$inferInsert"][])
+        const rows = await ownedRows(values)
+        return db.insert(table).values(rows)
+      },
+      /** Same ownership check, then returns the created rows. */
+      insertReturning: async (values: T["$inferInsert"] | T["$inferInsert"][]): Promise<T["$inferSelect"][]> => {
+        const rows = await ownedRows(values)
+        return (await db.insert(table).values(rows).returning()) as T["$inferSelect"][]
       },
       // car_id is stripped at runtime too: media/views can never be re-pointed at another car.
       update: (set: Partial<Omit<T["$inferInsert"], "carId">>, where: SQL) =>

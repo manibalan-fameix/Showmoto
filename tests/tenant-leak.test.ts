@@ -102,6 +102,13 @@ describe("scopedDb: every operation carries the dealer scope", () => {
     ).rejects.toBeInstanceOf(TenantViolationError)
   })
 
+  it("child insertReturning refuses cars owned by another dealer", async () => {
+    const stub = { select: () => ({ from: () => ({ where: async () => [] }) }) } as unknown as Db
+    await expect(
+      scopedDb(A, stub).carMedia.insertReturning({ carId: SOME_ID, kind: "photo", r2Key: "k" }),
+    ).rejects.toBeInstanceOf(TenantViolationError)
+  })
+
   it("rejects a malformed dealer id", () => {
     expect(() => scopedDb("not-a-uuid")).toThrow(TenantViolationError)
     expect(() => scopedDb("")).toThrow(TenantViolationError)

@@ -1,0 +1,99 @@
+import { asc, eq } from "drizzle-orm"
+
+import { CAR_ANGLES, HERO_ANGLE, type CarAngle } from "../angles.ts"
+import { decrypt } from "../crypto/index.ts"
+import { carMedia, cars, variants } from "../db/schema/index.ts"
+import { scopedDb } from "../db/scoped.ts"
+import { unscopedDb } from "../db/client.ts"
+import { getStorage } from "../storage/index.ts"
+import { formatReg } from "../reg.ts"
+
+export type MediaState = {
+  id: string
+  kind: "photo" | "video"
+  angle: CarAngle | null
+  status: "pending" | "uploaded" | "processing" | "ready" | "failed"
+  url: string
+  analysis: { seen: string[]; missing: string[] } | null
+}
+
+export type CarState = {
+  id: string
+  status: "draft" | "live" | "on_hold" | "sold" | "archived"
+  /** Plate, formatted. Dealer-only: the buyer page never receives this. */
+  reg: string
+  year: number | null
+  fuel: string | null
+  transmission: string | null
+  colour: string | null
+  ownerCount: number | null
+  insuranceValidTill: string | null
+  hypothecationCleared: boolean | null
+  rcVerified: boolean
+  variant: { id: string; label: string; make: string; model: string; variant: string } | null
+  askingPrice: number | null
+  kmDriven: number | null
+  shortCode: string
+  slug: string
+  caption: string | null
+  media: MediaState[]
+}
+
+/** True when a photo has landed in storage: publishing only needs the hero to reach this point. */
+export const isLanded = (m: Pick<MediaState, "status">) => m.status === "uploaded" || m.status === "ready"
+
+export type Readiness = { ready: boolean; missing: ("variant" | "year" | "hero")[] }
+
+export function publishReadiness(s: Pick<CarState, "variant" | "year" | "media">): Readiness {
+  const missing: Readiness["missing"] = []
+  if (!s.variant) missing.push("variant")
+  if (!s.year) missing.push("year")
+  if (!s.media.some((m) => m.kind === "photo" && m.angle === HERO_ANGLE && isLanded(m))) missing.push("hero")
+  return { ready: missing.length === 0, missing }
+}
+
+/** Load one of the dealer's cars with its variant and media. Returns null if it is not theirs. */
+export async function getCarState(dealerId: string, carId: string): Promise<CarState | null> {
+  const db = scopedDb(dealerId)
+  const [car] = await db.cars.select(eq(cars.id, carId), { limit: 1 })
+  if (!car) return null
+  const media = await db.carMedia.select(eq(carMedia.carId, carId), { orderBy: [asc(carMedia.sortOrder)] })
+
+  let variant: CarState["variant"] = null
+  if (car.variantId) {
+    // variants is shared master data (not tenant-scoped).
+    const [v] = await unscopedDb.select().from(variants).where(eq(variants.id, car.variantId)).limit(1)
+    if (v) variant = { id: v.id, label: `${v.make} ${v.model} ${v.variant}`, make: v.make, model: v.model, variant: v.variant }
+  }
+
+  const storage = getStorage()
+  return {
+    id: car.id,
+    status: car.status,
+    reg: car.regNumber ? formatReg(decrypt(car.regNumber)) : "",
+    year: car.year,
+    fuel: car.fuel,
+    transmission: car.transmission,
+    colour: car.colour,
+    ownerCount: car.ownerCount,
+    insuranceValidTill: car.insuranceValidTill,
+    hypothecationCleared: car.hypothecationCleared,
+    rcVerified: car.rcVerifiedAt !== null,
+    variant,
+    askingPrice: car.askingPrice,
+    kmDriven: car.kmDriven,
+    shortCode: car.shortCode,
+    slug: car.slug,
+    caption: car.caption,
+    media: media.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      angle: m.angle,
+      status: m.status,
+      url: storage.publicUrl(m.r2Key),
+      analysis: m.analysis ? { seen: m.analysis.seen, missing: m.analysis.missing } : null,
+    })),
+  }
+}
+
+export { CAR_ANGLES }
