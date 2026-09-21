@@ -25,7 +25,8 @@ export const cars = pgTable(
     /** AES-256-GCM ciphertext (lib/crypto). Never store or log plaintext. */
     regNumber: text("reg_number"),
     regPrefix: text("reg_prefix"),
-    year: integer("year").notNull(),
+    // Nullable: a draft exists before RC lookup fills it. Publishing requires it.
+    year: integer("year"),
     kmDriven: integer("km_driven"),
     ownerCount: integer("owner_count"),
     fuel: text("fuel"),
@@ -62,8 +63,14 @@ export const carMedia = pgTable(
     durationSec: integer("duration_sec"),
     sortOrder: integer("sort_order").notNull().default(0),
     status: mediaStatus("status").notNull().default("pending"),
+    /** Video only: which required angles the AI saw, and which are still missing. */
+    analysis: jsonb("analysis").$type<{ seen: string[]; missing: string[]; analysedAt: string }>(),
   },
-  (t) => [index("car_media_car_idx").on(t.carId, t.sortOrder)],
+  (t) => [
+    index("car_media_car_idx").on(t.carId, t.sortOrder),
+    // One row per upload attempt key, so retried requests reuse the slot instead of duplicating it.
+    unique("car_media_r2key_uq").on(t.r2Key),
+  ],
 )
 
 export const rcLookups = pgTable(

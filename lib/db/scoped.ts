@@ -1,4 +1,4 @@
-import { and, eq, exists, inArray, type SQL } from "drizzle-orm"
+import { and, count, eq, exists, inArray, type SQL } from "drizzle-orm"
 import type { AnyPgColumn, PgTable } from "drizzle-orm/pg-core"
 import { z } from "zod"
 
@@ -80,6 +80,10 @@ export function scopedDb(dealerId: string, db: Db = unscopedDb) {
     const scope = eq(table.dealerId, dealerId)
     return {
       select: (where?: SQL, opts?: SelectOptions) => read(table, and(scope, where) as SQL, opts),
+      count: async (where?: SQL) => {
+        const [row] = await db.select({ n: count() }).from(table as PgTable).where(and(scope, where))
+        return Number(row?.n ?? 0)
+      },
       insert: (values: Omit<T["$inferInsert"], "dealerId">) =>
         db.insert(table).values({ ...values, dealerId } as T["$inferInsert"]),
       // dealer_id is stripped at runtime too: a row can never be moved to another dealer.
@@ -93,6 +97,10 @@ export function scopedDb(dealerId: string, db: Db = unscopedDb) {
     const scope = carScope(table.carId)
     return {
       select: (where?: SQL, opts?: SelectOptions) => read(table, and(scope, where) as SQL, opts),
+      count: async (where?: SQL) => {
+        const [row] = await db.select({ n: count() }).from(table as PgTable).where(and(scope, where))
+        return Number(row?.n ?? 0)
+      },
       /** Verifies every car_id belongs to this dealer before inserting. */
       insert: async (values: T["$inferInsert"] | T["$inferInsert"][]) => {
         const rows = Array.isArray(values) ? values : [values]

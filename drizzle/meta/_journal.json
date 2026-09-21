@@ -15,6 +15,13 @@
       "when": 1790005810268,
       "tag": "0001_price_events_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790008427822,
+      "tag": "0002_phase2_variants_media",
+      "breakpoints": true
     }
   ]
 }

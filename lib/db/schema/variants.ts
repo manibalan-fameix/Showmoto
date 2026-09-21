@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core"
+import { index, integer, jsonb, pgTable, text, unique, uuid } from "drizzle-orm/pg-core"
 
 // Master spec table. Seeded from CSV, never user-editable, shared by all dealers.
 export const variants = pgTable(
@@ -16,5 +16,9 @@ export const variants = pgTable(
     specs: jsonb("specs").$type<Record<string, Record<string, string | number | boolean>>>().notNull().default({}),
     features: jsonb("features").$type<Record<string, string[]>>().notNull().default({}),
   },
-  (t) => [index("variants_make_model_idx").on(t.make, t.model)],
+  (t) => [
+    index("variants_make_model_idx").on(t.make, t.model),
+    // Natural key: lets the CSV importer upsert, so re-importing an edited file updates rows in place.
+    unique("variants_natural_uq").on(t.make, t.model, t.variant, t.fuel, t.transmission, t.yearFrom),
+  ],
 )
