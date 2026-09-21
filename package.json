@@ -15,7 +15,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "node --env-file-if-exists=.env.local scripts/seed.ts",
     "db:import-variants": "node --env-file-if-exists=.env.local scripts/import-variants.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "worker": "node --env-file-if-exists=.env.local workers/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

@@ -130,3 +130,70 @@ test("publishing waits for the cover photo, then unlocks while other photos keep
   await expect(page.getByRole("button", { name: "Publish" })).toBeDisabled()
   await expect(page.getByText(/cover photo/i).first()).toBeVisible()
 })
+
+/** A photo-sized JPEG (hundreds of KB): flat colour compresses to nothing, so add texture. */
+async function heavyJpeg(page: Page) {
+  const b64 = await page.evaluate(async () => {
+    const c = document.createElement("canvas")
+    c.width = 1920
+    c.height = 1440
+    const ctx = c.getContext("2d")!
+    const g = ctx.createLinearGradient(0, 0, 1920, 1440)
+    g.addColorStop(0, "#5b8fc7")
+    g.addColorStop(1, "#c7a15b")
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, 1920, 1440)
+    for (let i = 0; i < 4000; i++) {
+      ctx.fillStyle = `rgb(${(i * 37) % 255},${(i * 91) % 255},${(i * 53) % 255})`
+      ctx.globalAlpha = 0.35
+      ctx.fillRect((i * 613) % 1900, (i * 977) % 1400, 20 + (i % 70), 20 + ((i * 7) % 70))
+    }
+    const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), "image/jpeg", 0.9))
+    const buf = new Uint8Array(await blob.arrayBuffer())
+    let s = ""
+    for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+    return btoa(s)
+  })
+  return { name: "cover.jpg", mimeType: "image/jpeg", buffer: Buffer.from(b64, "base64") }
+}
+
+test("emulated Fast 3G: plate photo to published in under 2 minutes with only the cover photo", async ({ page }) => {
+  await signIn(page)
+  await page.goto("/cars/new")
+  await expect(page.getByTestId("plate-file-input")).toBeAttached()
+
+  // Fast 3G, applied after the app shell has loaded so we measure the flow, not the dev bundle.
+  const cdp = await page.context().newCDPSession(page)
+  await cdp.send("Network.enable")
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 562,
+    downloadThroughput: (1.6 * 1024 * 1024) / 8,
+    uploadThroughput: (750 * 1024) / 8,
+  })
+
+  const cover = await heavyJpeg(page)
+  console.log(`cover photo size before on-device resize: ${(cover.buffer.length / 1024).toFixed(0)} KB`)
+
+  const started = Date.now()
+  await page.getByTestId("plate-file-input").setInputFiles(await jpeg(page, "plate"))
+  await page.getByLabel("Registration number").fill("TN 11 AB 4321")
+  await page.getByRole("button", { name: /look up this car/i }).click()
+  await expect(page.getByTestId("variant-option").first()).toBeVisible({ timeout: 60_000 })
+  await pickVariantAndContinue(page)
+
+  await page.getByRole("button", { name: /start guided capture/i }).click()
+  await page.getByTestId("camera-file-input").setInputFiles(cover) // front 3/4 = the cover photo
+  await page.getByRole("button", { name: /^done$/i }).click()
+  await expect(page.getByTestId("upload-count")).toHaveText("1 of 12 uploaded", { timeout: 90_000 })
+  await page.getByRole("button", { name: "Continue", exact: true }).click()
+
+  await page.getByLabel("Asking price (₹)").fill("450000")
+  await page.getByLabel("Kilometres driven").fill("52000")
+  await page.getByRole("button", { name: "Publish" }).click()
+  await expect(page.getByTestId("published-title")).toBeVisible({ timeout: 60_000 })
+
+  const elapsedSec = (Date.now() - started) / 1000
+  console.log(`emulated Fast 3G, plate photo to published: ${elapsedSec.toFixed(1)}s (excludes human typing time)`)
+  expect(elapsedSec).toBeLessThan(120)
+})

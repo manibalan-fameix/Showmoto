@@ -9,6 +9,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest"
 
 const url = process.env.TEST_DATABASE_URL
 
+// The pool is shared by every block in this file, so it is closed once, at the very end.
+let closeDb: (() => Promise<void>) | undefined
+afterAll(async () => {
+  await closeDb?.()
+  vi.unstubAllEnvs()
+})
+
 describe.skipIf(!url)("add-car server logic (live database)", () => {
   let m: {
     db: typeof import("../lib/db/client")
@@ -49,6 +56,7 @@ describe.skipIf(!url)("add-car server logic (live database)", () => {
       crypto: await import("../lib/crypto"),
       local: await import("../lib/storage/local"),
     }
+    closeDb = () => m.db.pool.end()
     const { unscopedDb } = m.db
     const [a, b] = await unscopedDb
       .insert(m.s.dealers)
@@ -68,8 +76,6 @@ describe.skipIf(!url)("add-car server logic (live database)", () => {
   afterAll(async () => {
     await rm(path.join(m.local.LOCAL_ROOT, "dealers", A), { recursive: true, force: true })
     await rm(path.join(m.local.LOCAL_ROOT, "dealers", B), { recursive: true, force: true })
-    await m.db.pool.end()
-    vi.unstubAllEnvs()
   })
 
   const landPhoto = async (dealer: string, carId: string, angle: string, uploadId = randomUUID()) => {
@@ -279,5 +285,76 @@ describe.skipIf(!url)("add-car server logic (live database)", () => {
       expect(kit?.caption).toBe(r.ok ? r.kit.caption : "")
       expect(await m.pub.getShareKit(B, carId)).toBeNull()
     })
+  })
+})
+
+describe.skipIf(!url)("video worker job (live database, fake ffmpeg)", () => {
+  it("processes a video into HLS + poster, records the analysis, and never stores analysis frames", async () => {
+    process.env.DATABASE_URL = url
+    process.env.ENCRYPTION_KEY = randomBytes(32).toString("base64")
+    vi.stubEnv("NODE_ENV", "development")
+    delete process.env.R2_BUCKET
+    const { unscopedDb, pool } = await import("../lib/db/client")
+    const s = await import("../lib/db/schema")
+    const scoped = await import("../lib/db/scoped")
+    const create = await import("../lib/cars/create")
+    const media = await import("../lib/cars/media")
+    const local = await import("../lib/storage/local")
+    const { createLocalStorage } = local
+    const { processVideoJob } = await import("../workers/video")
+    const { mkdir, writeFile, readdir } = await import("node:fs/promises")
+
+    const tag2 = randomUUID().slice(0, 6)
+    const theme = { primary: "#1d4ed8", primaryForeground: "#ffffff", accent: "#f59e0b", radius: "md" as const }
+    const [d] = await unscopedDb.insert(s.dealers).values({ slug: `vid-${tag2}`, displayName: "V", theme }).returning()
+    const [other] = await unscopedDb.insert(s.dealers).values({ slug: `vid2-${tag2}`, displayName: "W", theme }).returning()
+    const carId = await create.createDraftCar(d.id, "TN10AB1234")
+    const req = await media.requestUpload(d.id, { carId, uploadId: randomUUID(), kind: "video", contentType: "video/mp4", size: 10 })
+    if (!req.ok) throw new Error(req.error)
+    const [row] = await scoped.scopedDb(d.id).carMedia.select(eq(s.carMedia.id, req.mediaId))
+    const file = local.localPath(row.r2Key)!
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, "fake-video-bytes")
+
+    // A stand-in for ffmpeg: writes the files the real one would, so the job's own logic runs.
+    const calls: string[] = []
+    const exec = async (cmd: "ffmpeg" | "ffprobe", args: string[]) => {
+      calls.push(cmd)
+      if (cmd === "ffprobe") return { stdout: JSON.stringify({ format: { duration: "30" }, streams: [{ codec_type: "video", width: 1280, height: 720 }, { codec_type: "audio" }] }) }
+      const out = args.at(-1)!
+      await mkdir(path.dirname(out), { recursive: true })
+      await writeFile(out.replace("%02d", "01"), "x")
+      if (out.endsWith("index.m3u8")) await writeFile(out.replace("index.m3u8", "seg_000.ts"), "ts")
+      return { stdout: "" }
+    }
+    const vision = { json: vi.fn(async () => ({ seen: ["front_three_quarter", "dashboard"] })) } as never
+    const storage = createLocalStorage()
+
+    // A job carrying another dealer's id must do nothing.
+    await processVideoJob({ dealerId: other.id, carId, mediaId: req.mediaId }, { storage, vision, exec })
+    expect((await scoped.scopedDb(d.id).carMedia.select(eq(s.carMedia.id, req.mediaId)))[0].status).toBe("pending")
+
+    await processVideoJob({ dealerId: d.id, carId, mediaId: req.mediaId }, { storage, vision, exec })
+    const [done] = await scoped.scopedDb(d.id).carMedia.select(eq(s.carMedia.id, req.mediaId))
+    expect(done.status).toBe("ready")
+    expect(done.durationSec).toBe(30)
+    expect(done.analysis?.seen).toEqual(["front_three_quarter", "dashboard"])
+    expect(done.analysis?.missing).toHaveLength(10)
+
+    const base = row.r2Key.replace(/\.[^.]+$/, "")
+    for (const key of [`${base}/hls/master.m3u8`, `${base}/hls/360p/index.m3u8`, `${base}/hls/720p/seg_000.ts`, `${base}/poster.jpg`]) {
+      expect(await storage.head(key), key).not.toBeNull()
+    }
+    // Analysis frames stay in memory: nothing but HLS files and the poster is written beside the video.
+    const written = await readdir(path.dirname(local.localPath(`${base}/poster.jpg`)!))
+    expect(written.filter((n) => /^f\d+\.jpg$/.test(n))).toEqual([])
+
+    // Failure marks the media failed and rethrows so the queue retries.
+    const failing = async () => { throw new Error("ffmpeg exploded") }
+    await expect(processVideoJob({ dealerId: d.id, carId, mediaId: req.mediaId }, { storage, vision, exec: failing as never })).rejects.toThrow("ffmpeg exploded")
+    expect((await scoped.scopedDb(d.id).carMedia.select(eq(s.carMedia.id, req.mediaId)))[0].status).toBe("failed")
+
+    await rm(path.join(local.LOCAL_ROOT, "dealers", d.id), { recursive: true, force: true })
+    closeDb ??= () => pool.end()
   })
 })
