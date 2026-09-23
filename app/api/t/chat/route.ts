@@ -139,9 +139,9 @@ export async function POST(req: Request) {
     system = buildGeneralSystemPrompt(dealer.displayName, dealer.phone, inventory)
   }
 
-  const stream = client.messages.stream({
+  const stream = client.stream({
     model: getChatModel(),
-    max_tokens: 1024,
+    maxTokens: 1024,
     system,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   })
@@ -150,11 +150,7 @@ export async function POST(req: Request) {
   const body2 = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(event.delta.text))
-          }
-        }
+        for await (const chunk of stream) controller.enqueue(encoder.encode(chunk))
       } catch {
         controller.enqueue(encoder.encode("\n\nSomething went wrong. Please try again."))
       } finally {

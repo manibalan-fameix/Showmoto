@@ -101,7 +101,7 @@ describe("chat client config", () => {
   })
 
   it("prefers CHAT_MODEL, then VISION_MODEL, then the default", () => {
-    expect(getChatModel({})).toBe("claude-opus-5")
+    expect(getChatModel({})).toBe("gemini-3.6-flash")
     expect(getChatModel({ VISION_MODEL: "vision-model" })).toBe("vision-model")
     expect(getChatModel({ VISION_MODEL: "vision-model", CHAT_MODEL: "chat-model" })).toBe("chat-model")
   })

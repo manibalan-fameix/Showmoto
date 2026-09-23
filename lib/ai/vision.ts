@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk"
+import { GeminiError, generate, type GeminiFetch } from "./gemini.ts"
 import { z } from "zod"
 
 export type VisionImage = { mediaType: "image/jpeg" | "image/png" | "image/webp"; base64: string }
@@ -20,38 +20,31 @@ export interface VisionClient {
 }
 
 /** Default model. Override with VISION_MODEL (e.g. a cheaper, faster one for plate reading). */
-export const DEFAULT_VISION_MODEL = "claude-opus-5"
+export const DEFAULT_VISION_MODEL = "gemini-3.6-flash"
 
-export function createAnthropicVision(client: Anthropic, model: string): VisionClient {
+export function createGeminiVision(apiKey: string, model: string, fetchFn: GeminiFetch = fetch): VisionClient {
   return {
     async json<T>(req: VisionRequest<T>): Promise<T | null> {
       try {
-        const content: Anthropic.ContentBlockParam[] = [
-          ...(req.images ?? []).map(
-            (img): Anthropic.ImageBlockParam => ({
-              type: "image",
-              source: { type: "base64", media_type: img.mediaType, data: img.base64 },
-            }),
-          ),
-          { type: "text", text: req.prompt },
-        ]
-        const response = await client.messages.create({
-          model,
-          max_tokens: req.maxTokens ?? 2000,
+        const text = await generate(fetchFn, apiKey, model, {
           system: req.system,
-          // Low effort: these are short extraction and ranking tasks on the dealer's critical path.
-          output_config: { effort: "low", format: { type: "json_schema", schema: req.jsonSchema } },
-          messages: [{ role: "user", content }],
+          maxOutputTokens: req.maxTokens ?? 2000,
+          jsonSchema: req.jsonSchema,
+          contents: [{
+            role: "user",
+            parts: [
+              ...(req.images ?? []).map((img) => ({ inlineData: { mimeType: img.mediaType, data: img.base64 } })),
+              { text: req.prompt },
+            ],
+          }],
         })
-        // A safety refusal or a truncated answer is treated as "no answer", not an error.
-        if (response.stop_reason === "refusal" || response.stop_reason === "max_tokens") return null
-        const text = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text
+        // A safety block or a truncated answer is treated as "no answer", not an error.
         if (!text) return null
         const parsed = req.validate.safeParse(JSON.parse(text))
         return parsed.success ? parsed.data : null
       } catch (error) {
         // Never log request content: it can contain plates and images.
-        const status = error instanceof Anthropic.APIError ? error.status : "unknown"
+        const status = error instanceof GeminiError ? error.status : "unknown"
         console.error(`vision call failed (status ${status})`)
         return null
       }
@@ -59,8 +52,8 @@ export function createAnthropicVision(client: Anthropic, model: string): VisionC
   }
 }
 
-/** Null when VISION_API_KEY is not set: callers fall back to manual entry / rules only. */
+/** Null when VISION_API_KEY (a Google Gemini API key) is not set: callers fall back to manual entry / rules only. */
 export function getVisionClient(env: Record<string, string | undefined> = process.env): VisionClient | null {
   if (!env.VISION_API_KEY) return null
-  return createAnthropicVision(new Anthropic({ apiKey: env.VISION_API_KEY }), env.VISION_MODEL ?? DEFAULT_VISION_MODEL)
+  return createGeminiVision(env.VISION_API_KEY, env.VISION_MODEL ?? DEFAULT_VISION_MODEL)
 }

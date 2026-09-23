@@ -54,8 +54,8 @@ Choices made without asking, newest first within each phase. Reverse any of them
 - Nothing that calls the vision model has been run against the live API, because there was no key. The client is unit-tested with fakes: valid JSON, schema violations, refusals, truncation and API errors all return null instead of throwing.
 
 **Choices**
-- Added dependencies: `@anthropic-ai/sdk` (the vision model; Section 2 says "a vision model" without naming one), `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` (R2, named in Section 2), `pg-boss` (Section 2), `@playwright/test` (Section 2).
-- Vision model defaults to `claude-opus-5` (override with `VISION_MODEL`), at low effort because these are short extraction tasks on the dealer's waiting path. Refusal fallbacks are not enabled: a refusal is treated as "no answer" and the dealer types the value.
+- Added dependencies: Google Gemini via REST `fetch` (no SDK; the vision model, which Section 2 leaves unnamed), `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` (R2, named in Section 2), `pg-boss` (Section 2), `@playwright/test` (Section 2).
+- Vision model defaults to `gemini-3.6-flash` (override with `VISION_MODEL`), with thinking off because these are short extraction tasks on the dealer's waiting path. Refusal fallbacks are not enabled: a refusal is treated as "no answer" and the dealer types the value.
 - Variant matching is rules first (make, model, variant, fuel, transmission, year, with typo tolerance). The model is only asked when the top two results are close, and it can only reorder catalogue ids we send. Ids it invents are discarded, so it cannot invent a variant or its specs.
 - A variant must be chosen before publishing. If a car is not in the catalogue, add it to the CSV. There is no free-text car.
 - RC data is cached per car for 30 days. Rate limits: 40 lookups per dealer per hour (counted in the database) and 25 per IP per hour (in memory, per server instance).

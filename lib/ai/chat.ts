@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk"
+import { streamText, type GeminiContent } from "./gemini.ts"
 import { z } from "zod"
 
 import { formatInr } from "../share/caption"
@@ -77,7 +77,7 @@ Never state or guess a registration number, VIN, or the seller's personal detail
 Keep replies short and conversational: 1-4 sentences, or a short bullet list for multi-part answers — this is
 a chat bubble, not a report. Prices are in Indian Rupees (₹). Treat EMI and finance figures as estimates and
 say so when quoting them. Don't discuss unrelated topics, other dealers, or anything outside buying this
-dealer's cars. Never mention that you are Claude or Anthropic; you are the dealer's chat assistant.
+dealer's cars. Never mention which AI model or company powers you; you are the dealer's chat assistant.
 `.trim()
 
 function fmtPrice(n: number | null): string {
@@ -149,17 +149,32 @@ export function buildGeneralSystemPrompt(dealerName: string, phone: string | nul
   return lines.join("\n")
 }
 
-/** Default model. Override with CHAT_MODEL. Falls back to the vision model config: one Anthropic key per project. */
-export const DEFAULT_CHAT_MODEL = "claude-opus-5"
+/** Default model. Override with CHAT_MODEL. Falls back to the vision model config: one Gemini key per project. */
+export const DEFAULT_CHAT_MODEL = "gemini-3.6-flash"
 
 export function getChatModel(env: Record<string, string | undefined> = process.env): string {
   return env.CHAT_MODEL ?? env.VISION_MODEL ?? DEFAULT_CHAT_MODEL
 }
 
-/** Null when VISION_API_KEY is not set: the chat widget stays hidden rather than erroring. */
-export function getChatClient(env: Record<string, string | undefined> = process.env): Anthropic | null {
-  if (!env.VISION_API_KEY) return null
-  return new Anthropic({ apiKey: env.VISION_API_KEY })
+export interface ChatClient {
+  stream(req: { model: string; system: string; messages: { role: "user" | "assistant"; content: string }[]; maxTokens: number }): AsyncGenerator<string>
+}
+
+/** Null when VISION_API_KEY (a Google Gemini API key) is not set: the chat widget stays hidden rather than erroring. */
+export function getChatClient(env: Record<string, string | undefined> = process.env): ChatClient | null {
+  const apiKey = env.VISION_API_KEY
+  if (!apiKey) return null
+  return {
+    stream: (req) =>
+      streamText(fetch, apiKey, req.model, {
+        system: req.system,
+        maxOutputTokens: req.maxTokens,
+        contents: req.messages.map((m): GeminiContent => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        })),
+      }),
+  }
 }
 
 /** Server-only check so buyer pages can skip rendering the chat widget entirely when unconfigured. */

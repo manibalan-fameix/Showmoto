@@ -1,34 +1,36 @@
-import type Anthropic from "@anthropic-ai/sdk"
 import { describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 
 import { readPlate } from "../lib/ai/plate"
-import { createAnthropicVision, getVisionClient } from "../lib/ai/vision"
+import { createGeminiVision, getVisionClient } from "../lib/ai/vision"
 
 const schema = z.object({ plate: z.string().nullable() })
 const req = { system: "s", prompt: "p", jsonSchema: {}, validate: schema }
-const fakeSdk = (create: (args: unknown) => unknown) => ({ messages: { create: vi.fn(create) } }) as unknown as Anthropic
-const text = (t: string, stop = "end_turn") => ({ stop_reason: stop, content: [{ type: "text", text: t }] })
+const reply = (t: string | null, finishReason = "STOP") =>
+  new Response(JSON.stringify({ candidates: [{ finishReason, content: { parts: t === null ? [] : [{ text: t }] } }] }))
+const fakeFetch = (make: () => Response) => vi.fn(async () => make()) as unknown as typeof fetch
 
 describe("vision client", () => {
-  it("returns validated JSON and sends images as base64 blocks", async () => {
-    const sdk = fakeSdk(() => text('{"plate":"TN11AB1234"}'))
-    const v = createAnthropicVision(sdk, "test-model")
+  it("returns validated JSON and sends images as inlineData", async () => {
+    const f = fakeFetch(() => reply('{"plate":"TN11AB1234"}'))
+    const v = createGeminiVision("key", "test-model", f)
     const out = await v.json({ ...req, images: [{ mediaType: "image/jpeg", base64: "AAAA" }] })
     expect(out).toEqual({ plate: "TN11AB1234" })
-    const args = (sdk.messages.create as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]
-    expect(args.model).toBe("test-model")
-    expect(args.messages[0].content[0]).toMatchObject({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: "AAAA" } })
-    expect(args.output_config.format.type).toBe("json_schema")
+    const [url, init] = (f as unknown as ReturnType<typeof vi.fn>).mock.calls[0]
+    expect(url).toContain("/models/test-model:generateContent")
+    expect(init.headers["x-goog-api-key"]).toBe("key")
+    const sent = JSON.parse(init.body)
+    expect(sent.contents[0].parts[0]).toEqual({ inlineData: { mimeType: "image/jpeg", data: "AAAA" } })
+    expect(sent.generationConfig.responseMimeType).toBe("application/json")
   })
-  it("returns null for schema violations, non-JSON, refusals, truncation and empty output", async () => {
-    for (const reply of [text('{"nope":1}'), text("not json"), text('{"plate":"X"}', "refusal"), text('{"plate":"X"}', "max_tokens"), { stop_reason: "end_turn", content: [] }]) {
-      expect(await createAnthropicVision(fakeSdk(() => reply), "m").json(req)).toBeNull()
+  it("returns null for schema violations, non-JSON, blocks, truncation and empty output", async () => {
+    for (const r of [reply('{"nope":1}'), reply("not json"), reply('{"plate":"X"}', "SAFETY"), reply('{"plate":"X"}', "MAX_TOKENS"), reply(null)]) {
+      expect(await createGeminiVision("k", "m", fakeFetch(() => r)).json(req)).toBeNull()
     }
   })
   it("returns null instead of throwing when the API call fails, and does not log the prompt", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {})
-    const v = createAnthropicVision(fakeSdk(() => { throw new Error("boom TN11AB1234") }), "m")
+    const v = createGeminiVision("k", "m", vi.fn(async () => { throw new Error("boom TN11AB1234") }) as unknown as typeof fetch)
     expect(await v.json({ ...req, prompt: "secret plate TN11AB1234" })).toBeNull()
     expect(JSON.stringify(log.mock.calls)).not.toMatch(/TN11AB1234|secret/)
     log.mockRestore()
