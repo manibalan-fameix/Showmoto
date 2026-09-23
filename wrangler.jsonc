@@ -5,5 +5,13 @@
   "compatibility_date": "2026-09-21",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "vars": {
+    "ROOT_DOMAIN": "showmoto.in",
+    "AUTH_TRUST_HOST": "true",
+    "R2_ACCOUNT_ID": "262572defdfe5c699680a2a02db9434b",
+    "R2_BUCKET": "showmoto",
+    "R2_PUBLIC_URL": "https://pub-7221cd485d6347b9bfa561f64eb7ce5c.r2.dev",
+    "RC_PROVIDER": "mock"
+  },
   "observability": { "enabled": true }
 }
