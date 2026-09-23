@@ -26,6 +26,9 @@ importers:
       '@hugeicons/react':
         specifier: ^1.1.10
         version: 1.1.10(react@19.2.8)
+      '@neondatabase/serverless':
+        specifier: ^1.1.0
+        version: 1.1.0
       '@opennextjs/cloudflare':
         specifier: ^1.20.6
         version: 1.20.6(next@16.3.4(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.63.0)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(supports-color@10.2.2)(wrangler@4.136.3(@types/node@20.19.43))
@@ -6981,8 +6984,7 @@ snapshots:
       '@tybys/wasm-util': 0.10.4
     optional: true
 
-  '@neondatabase/serverless@1.1.0':
-    optional: true
+  '@neondatabase/serverless@1.1.0': {}
 
   '@next/env@16.3.4': {}
 

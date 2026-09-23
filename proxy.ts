@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { getRootDomain } from "./lib/env"
 import { looksLikeShortCode } from "./lib/slug"
 import { TENANT_HEADER, classifyHost } from "./lib/tenant/host"
-import { resolveCustomDomain, resolveShortCode } from "./lib/tenant/dealer"
+import { resolveCustomDomain, resolveShortCode } from "./lib/tenant/lookup"
 
 const notFound = () => new NextResponse("Not found", { status: 404 })
 
