@@ -6,6 +6,8 @@ export const copy = {
   brand: {
     name: "ShowMoto",
     tagline: "Your showroom. One smart link.",
+    // Shown on the public privacy policy and terms pages. Replace with a support mailbox on your domain.
+    contactEmail: "manibalan.fameix@gmail.com",
   },
   marketing: {
     heading: "Sell used cars from one link",

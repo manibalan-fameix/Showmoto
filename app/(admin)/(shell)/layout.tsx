@@ -25,6 +25,7 @@ const DEMO_CARS = [
 export default async function ShellLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getDealerContext()
   if (ctx.status === "anonymous") redirect("/login")
+  if (ctx.status === "no-dealer") redirect("/onboarding")
 
   const dealerName = ctx.status === "ok" ? ctx.dealer.displayName : copy.brand.name
   const planLabel = ctx.status === "ok" ? ctx.plan.label : ""
