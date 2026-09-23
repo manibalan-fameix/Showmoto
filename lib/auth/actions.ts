@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { AuthError } from "next-auth"
 import { z } from "zod"
 
 import { signIn, signOut } from "./index"
@@ -21,12 +22,26 @@ const emailPasswordSchema = z.object({
   password: z.string().min(1),
 })
 
-export async function signInWithGoogle() {
-  if (isDevBypassEnabled()) {
-    ;(await cookies()).set(DEV_BYPASS_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" })
-    redirect("/dashboard")
+export type FirebaseSignInResult = { ok: true } | { ok: false; error: string }
+
+/** Exchanges a Firebase ID token (from the browser SDK) for an app session. */
+export async function signInWithFirebaseToken(idToken: string): Promise<FirebaseSignInResult> {
+  try {
+    await signIn("firebase", { idToken, redirect: false })
+    return { ok: true }
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { ok: false, error: "We could not verify your sign-in. If you used email, confirm your email address first." }
+    }
+    throw error
   }
-  await signIn("google", { redirectTo: "/dashboard" })
+}
+
+/** Dev only: open the in-memory demo dealer when Firebase is not configured. */
+export async function openDevDemo() {
+  if (!isDevBypassEnabled()) redirect("/login")
+  ;(await cookies()).set(DEV_BYPASS_COOKIE, "1", { httpOnly: true, sameSite: "lax", path: "/" })
+  redirect("/dashboard")
 }
 
 export async function signInWithEmailPassword(

@@ -6,3 +6,5 @@ allowBuilds:
   msw: false
   esbuild: false
   workerd: true
+  '@firebase/util': false
+  protobufjs: false

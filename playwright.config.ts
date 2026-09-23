@@ -48,8 +48,9 @@ export default defineConfig({
       RC_PROVIDER: "mock",
       VISION_API_KEY: "",
       R2_BUCKET: "",
-      AUTH_GOOGLE_ID: "",
-      AUTH_GOOGLE_SECRET: "",
+      FIREBASE_API_KEY: "",
+      FIREBASE_PROJECT_ID: "",
+      FIREBASE_APP_ID: "",
     },
   },
 })

@@ -81,7 +81,7 @@ export const copy = {
     signInGoogle: "Continue with Google",
     signOut: "Sign out",
     devBypass: "Development mode: you can use email/password or open the demo dealer.",
-    notConfigured: "Sign-in is not configured yet. Add the Google keys to the environment.",
+    notConfigured: "Sign-in is not configured yet. Add the Firebase keys to the environment.",
   },
   admin: {
     nav: {

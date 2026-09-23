@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getDealerContext } from "@/lib/auth/context"
 import { getRootDomain } from "@/lib/env"
 
-import { OnboardingForm } from "./onboarding-form"
+import { OnboardingWizard } from "./onboarding-wizard"
 
 export const metadata = { title: "Set up your showroom" }
 export const dynamic = "force-dynamic"
@@ -15,17 +14,10 @@ export default async function OnboardingPage() {
   if (ctx.status === "anonymous") redirect("/login")
   if (ctx.status === "ok") redirect("/dashboard")
 
+  const firstName = ctx.user.name?.trim().split(/\s+/)[0] ?? ""
   return (
     <main className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Set up your showroom</CardTitle>
-          <CardDescription>Tell us about your dealership. You can change the look and details later.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <OnboardingForm rootDomain={getRootDomain() ?? "localhost:3000"} defaultName="" />
-        </CardContent>
-      </Card>
+      <OnboardingWizard rootDomain={getRootDomain() ?? "localhost:3000"} firstName={firstName} />
     </main>
   )
 }

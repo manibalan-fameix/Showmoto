@@ -1,20 +1,32 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter"
 import NextAuth from "next-auth"
-import Google from "next-auth/providers/google"
+import Credentials from "next-auth/providers/credentials"
 
 import { unscopedDb } from "../db/client"
 import { accounts, users } from "../db/schema"
+import { firebaseProjectId, verifyFirebaseIdToken } from "./firebase"
+import { findOrCreateFirebaseUser } from "./firebase-user"
 
-// Keys come from env: AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET.
+// Sign-in happens in the browser with Firebase (Google, phone OTP, email + password). The browser
+// sends the Firebase ID token here; we verify it ourselves and start a normal app session.
+// Keys come from env: AUTH_SECRET, FIREBASE_PROJECT_ID (+ FIREBASE_API_KEY, FIREBASE_APP_ID for the browser).
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: DrizzleAdapter(unscopedDb, { usersTable: users, accountsTable: accounts }),
   session: { strategy: "jwt" },
   // Host is validated by proxy.ts: only app.<ROOT_DOMAIN> can reach /api/auth.
   trustHost: true,
   providers: [
-    // Google verifies email ownership, so linking by email is safe. It lets an owner
-    // pre-create a staff invite by email and have it attach on first sign-in.
-    Google({ allowDangerousEmailAccountLinking: true }),
+    Credentials({
+      id: "firebase",
+      credentials: { idToken: {} },
+      async authorize(credentials) {
+        const identity = await verifyFirebaseIdToken(String(credentials?.idToken ?? ""))
+        if (!identity) return null
+        // Email + password accounts must prove they own the address before they get a session.
+        if (identity.provider === "password" && !identity.emailVerified) return null
+        return findOrCreateFirebaseUser(identity)
+      },
+    }),
   ],
   pages: { signIn: "/login" },
   callbacks: {
@@ -26,4 +38,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 })
 
 export const isAuthConfigured = () =>
-  Boolean(process.env.AUTH_SECRET && process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
+  Boolean(process.env.AUTH_SECRET && firebaseProjectId() && process.env.FIREBASE_API_KEY && process.env.FIREBASE_APP_ID)
