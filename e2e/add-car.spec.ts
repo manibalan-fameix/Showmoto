@@ -119,6 +119,7 @@ async function heavyJpeg(page: Page) {
 test("emulated Fast 3G: plate photo to published in under 2 minutes with only the cover photo", async ({ page }) => {
   await signIn(page)
   await page.goto("/cars/new")
+  await page.getByTestId("start-new").click()
   await expect(page.getByTestId("plate-file-input")).toBeAttached()
 
   // Fast 3G, applied after the app shell has loaded so we measure the flow, not the dev bundle.

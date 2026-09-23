@@ -7,6 +7,7 @@ import { Camera01Icon, CheckmarkCircle02Icon, Video01Icon } from "@hugeicons/cor
 import { CameraSession } from "@/components/capture/camera-session"
 import { useUploads } from "@/components/capture/upload-provider"
 import { useCarSync } from "@/components/cars/use-car-sync"
+import { FooterAction } from "@/components/cars/wizard-shell"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -94,10 +95,6 @@ export function PhotosStep({ car, onCarChange, onNext }: { car: CarState; onCarC
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader>
-          <CardTitle>{t.title}</CardTitle>
-          <CardDescription>{t.body}</CardDescription>
-        </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between text-sm">
@@ -208,9 +205,11 @@ export function PhotosStep({ car, onCarChange, onNext }: { car: CarState; onCarC
         </CardContent>
       </Card>
 
-      <Button size="lg" onClick={onNext}>
-        {copy.admin.addCar.next}
-      </Button>
+      <FooterAction>
+        <Button size="lg" onClick={onNext}>
+          {copy.admin.addCar.next}
+        </Button>
+      </FooterAction>
 
       {session && <CameraSession angles={session} onShot={onShot} onClose={() => setSession(null)} />}
     </div>

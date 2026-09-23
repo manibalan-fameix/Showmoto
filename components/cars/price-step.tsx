@@ -5,9 +5,10 @@ import { useState } from "react"
 import { publishCarAction } from "@/app/(admin)/(shell)/cars/actions"
 import { useUploads } from "@/components/capture/upload-provider"
 import { useCarSync } from "@/components/cars/use-car-sync"
+import { FooterAction } from "@/components/cars/wizard-shell"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { HERO_ANGLE } from "@/lib/angles"
@@ -83,10 +84,6 @@ export function PriceStep({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t.title}</CardTitle>
-        <CardDescription>{t.body}</CardDescription>
-      </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="price">{t.priceLabel}</Label>
@@ -110,9 +107,11 @@ export function PriceStep({
           </Alert>
         )}
 
-        <Button size="lg" onClick={publish} disabled={busy || readiness.missing.length > 0}>
-          {busy ? t.publishing : t.publish}
-        </Button>
+        <FooterAction>
+          <Button size="lg" onClick={publish} disabled={busy || readiness.missing.length > 0}>
+            {busy ? t.publishing : t.publish}
+          </Button>
+        </FooterAction>
       </CardContent>
     </Card>
   )

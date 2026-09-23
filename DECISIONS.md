@@ -40,7 +40,7 @@ Choices made without asking, newest first within each phase. Reverse any of them
 - starter 20 cars, growth 50, pro 100, scale 1000 (the "100+" tier). White label and custom domain on for pro and scale. Adjust in `lib/plans.ts`.
 
 **Other**
-- Product name in copy is "Fameix" (from the repo name). Change in `lib/copy.ts`.
+- Product name in copy is "ShowMoto". Change in `lib/copy.ts`.
 - Theme validation: text colours are auto-adjusted to WCAG AA (4.5:1). A primary colour under 3:1 against white is rejected because buttons and links would vanish. The "near-black" fallback goes to pure black in the mid-tone band where near-black cannot reach 4.5:1.
 - Radius options: none, sm, md (preset default), lg.
 - A user belongs to one dealer in v1; if several links exist the earliest wins.

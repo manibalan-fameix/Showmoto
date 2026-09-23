@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" })
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
-export const metadata: Metadata = { title: "Fameix" }
+export const metadata: Metadata = { title: "ShowMoto" }
 export const viewport: Viewport = { width: "device-width", initialScale: 1 }
 
 // Root layout is theme-neutral. The admin layout adds next-themes; tenant pages get the

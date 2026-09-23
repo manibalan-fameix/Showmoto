@@ -14,6 +14,7 @@ import {
 import { carStatus, leadSource, leadStatus, mediaAngle, mediaKind, mediaStatus, priceEventType } from "./enums.ts"
 import { dealers } from "./dealers.ts"
 import { variants } from "./variants.ts"
+import type { MarketplaceDetails } from "../../cars/marketplace.ts"
 
 export const cars = pgTable(
   "cars",
@@ -44,6 +45,8 @@ export const cars = pgTable(
     soldPrice: integer("sold_price"),
     /** Instagram caption generated at publish (includes the short link). */
     caption: text("caption"),
+    /** Marketplace listing content: inspection, EMI, specs, features, plans and booking details. */
+    marketplaceDetails: jsonb("marketplace_details").$type<MarketplaceDetails>(),
   },
   (t) => [
     index("cars_dealer_idx").on(t.dealerId),

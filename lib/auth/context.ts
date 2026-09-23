@@ -6,6 +6,7 @@ import { unscopedDb } from "../db/client"
 import { dealerUsers, dealers } from "../db/schema"
 import { auth } from "./index"
 import { DEV_BYPASS_COOKIE, DEV_DEALER, DEV_USER, isDevBypassEnabled } from "./dev-bypass"
+import { LOCAL_LOGIN_COOKIE, emailFromLocalLoginCookie, getLocalDealerContext, isLocalPasswordLoginEnabled } from "./local-login"
 import { getPlan } from "../plans"
 
 export type DealerContext =
@@ -29,10 +30,29 @@ export type DealerContext =
  * v1: a user belongs to one dealer; if several exist the earliest link wins.
  */
 export const getDealerContext = cache(async (): Promise<DealerContext> => {
-  if (isDevBypassEnabled() && (await cookies()).get(DEV_BYPASS_COOKIE)) {
+  const cookieStore = await cookies()
+  if (isLocalPasswordLoginEnabled()) {
+    const email = emailFromLocalLoginCookie(cookieStore.get(LOCAL_LOGIN_COOKIE)?.value)
+    if (email) {
+      const ctx = await getLocalDealerContext(email)
+      if (ctx) {
+        return {
+          status: "ok",
+          user: { id: ctx.user.id, name: ctx.user.name, email: ctx.user.email },
+          dealer: ctx.dealer,
+          role: ctx.role,
+          plan: ctx.plan,
+          dealerInDb: true,
+        }
+      }
+    }
+  }
+
+  if (isDevBypassEnabled() && cookieStore.get(DEV_BYPASS_COOKIE)) {
     // Use the real seeded dealer when a database is available, so the whole flow can write rows.
     try {
-      const [row] = await unscopedDb.select().from(dealers).where(eq(dealers.slug, DEV_DEALER.slug)).limit(1)
+      const rows = await unscopedDb.select().from(dealers).where(eq(dealers.slug, DEV_DEALER.slug)).limit(1)
+      const row = rows?.[0]
       if (row) return { status: "ok", user: DEV_USER, dealer: row, role: "owner", plan: getPlan(row.plan), devBypass: true, dealerInDb: true }
     } catch {
       // No database configured or reachable: fall through to the in-memory demo dealer.

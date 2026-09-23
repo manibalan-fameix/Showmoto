@@ -5,11 +5,14 @@ import { useCallback, useState } from "react"
 
 import { getCarStateAction } from "@/app/(admin)/(shell)/cars/actions"
 import { DetailsStep } from "@/components/cars/details-step"
+import { MarketplaceDetailsStep } from "@/components/cars/marketplace-details-step"
 import { PhotosStep } from "@/components/cars/photos-step"
 import { PlateStep } from "@/components/cars/plate-step"
 import { PriceStep } from "@/components/cars/price-step"
 import { ShareKitPanel } from "@/components/cars/share-kit-panel"
-import { Stepper, type Step } from "@/components/cars/stepper"
+import { StartStep } from "@/components/cars/start-step"
+import { WizardShell } from "@/components/cars/wizard-shell"
+import type { Step } from "@/components/cars/stepper"
 import { Button, buttonVariants } from "@/components/ui/button"
 import type { RcSummary } from "@/lib/cars/dto"
 import type { ShareKit } from "@/lib/cars/publish"
@@ -19,9 +22,18 @@ import type { RcErrorCode } from "@/lib/rc/types"
 import { cn } from "@/lib/utils"
 
 const t = copy.admin.addCar
+const ORDER = ["plate", "car", "photos", "marketplace", "price"] as const
+
+const HEADINGS: Record<Exclude<Step, "start" | "done">, { title: string; subtitle: string }> = {
+  plate: { title: t.plate.title, subtitle: t.plate.body },
+  car: { title: t.details.title, subtitle: t.carSubtitle },
+  photos: { title: t.photos.title, subtitle: t.photos.body },
+  marketplace: { title: t.marketplace.title, subtitle: t.marketplace.body },
+  price: { title: t.price.title, subtitle: t.price.body },
+}
 
 function deriveStep(car: CarState | null, requested?: Step): Step {
-  if (!car) return "plate"
+  if (!car) return requested === "plate" ? "plate" : "start"
   if (car.status === "live") return "done"
   if (requested && requested !== "plate") return car.variant || requested === "car" ? requested : "car"
   return car.variant ? "photos" : "car"
@@ -59,49 +71,45 @@ export function AddCarWizard({
     go("car")
   }
 
+  const heading = step === "start" ? { title: t.start.title, subtitle: t.start.subtitle } : step === "done" ? { title: t.done.title, subtitle: car?.variant?.label } : HEADINGS[step]
+  const back: Partial<Record<Step, Step>> = { plate: "start", photos: "car", marketplace: "photos", price: "marketplace" }
+  const backTo = back[step]
+
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
-      <h1 className="text-xl font-semibold">{t.title}</h1>
-      {step !== "done" && <Stepper step={step} />}
+    <WizardShell
+      title={heading.title}
+      subtitle={heading.subtitle}
+      segments={step === "start" || step === "done" ? undefined : ORDER.length}
+      active={step === "start" || step === "done" ? undefined : ORDER.indexOf(step) + 1}
+      onBack={backTo ? () => go(backTo) : undefined}
+    >
+      {step === "start" && <StartStep onNew={() => go("plate")} />}
 
       {step === "plate" && <PlateStep onStarted={onStarted} />}
 
       {step === "car" && car && <DetailsStep car={car} rc={rc} rcError={rcError} onCarChange={setCar} onNext={() => go("photos")} />}
 
-      {step === "photos" && car && (
-        <>
-          <PhotosStep car={car} onCarChange={setCar} onNext={() => go("price")} />
-          <Button variant="ghost" onClick={() => go("car")}>
-            {t.back}
-          </Button>
-        </>
-      )}
+      {step === "photos" && car && <PhotosStep car={car} onCarChange={setCar} onNext={() => go("marketplace")} />}
+
+      {step === "marketplace" && car && <MarketplaceDetailsStep car={car} onCarChange={setCar} onNext={() => go("price")} />}
 
       {step === "price" && car && (
-        <>
-          <PriceStep
-            car={car}
-            onCarChange={setCar}
-            onPublished={(k, c) => {
-              setKit(k)
-              setCar(c)
-              go("done")
-            }}
-          />
-          <Button variant="ghost" onClick={() => go("photos")}>
-            {t.back}
-          </Button>
-        </>
+        <PriceStep
+          car={car}
+          onCarChange={setCar}
+          onPublished={(k, c) => {
+            setKit(k)
+            setCar(c)
+            go("done")
+          }}
+        />
       )}
 
       {step === "done" && car && (
         <>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold" data-testid="published-title">
-              {copy.admin.addCar.done.title}
-            </h2>
-            <p className="text-sm text-muted-foreground">{car.variant?.label}</p>
-          </div>
+          <span className="sr-only" data-testid="published-title">
+            {t.done.title}
+          </span>
           {kit && <ShareKitPanel kit={kit} title={car.variant?.label} />}
           <div className="flex flex-wrap gap-2">
             {kit && (
@@ -119,6 +127,6 @@ export function AddCarWizard({
           </div>
         </>
       )}
-    </div>
+    </WizardShell>
   )
 }

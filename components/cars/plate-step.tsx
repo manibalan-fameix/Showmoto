@@ -6,9 +6,10 @@ import { Camera01Icon } from "@hugeicons/core-free-icons"
 
 import { ocrPlateAction, startCarAction } from "@/app/(admin)/(shell)/cars/actions"
 import type { RcSummary } from "@/lib/cars/dto"
+import { FooterAction } from "@/components/cars/wizard-shell"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { copy } from "@/lib/copy"
@@ -66,10 +67,6 @@ export function PlateStep({ onStarted }: { onStarted: (r: { carId: string; rc: R
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{t.title}</CardTitle>
-        <CardDescription>{t.body}</CardDescription>
-      </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed border-border p-5 text-center">
           <input
@@ -117,9 +114,11 @@ export function PlateStep({ onStarted }: { onStarted: (r: { carId: string; rc: R
           </Alert>
         )}
 
-        <Button size="lg" onClick={start} disabled={starting || reading || !reg.trim()}>
-          {starting ? t.starting : t.start}
-        </Button>
+        <FooterAction>
+          <Button size="lg" onClick={start} disabled={starting || reading || !reg.trim()}>
+            {starting ? t.starting : t.start}
+          </Button>
+        </FooterAction>
       </CardContent>
     </Card>
   )

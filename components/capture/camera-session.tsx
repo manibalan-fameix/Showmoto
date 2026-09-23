@@ -119,7 +119,8 @@ export function CameraSession({
         <AngleOutline angle={angle} className="pointer-events-none absolute inset-0 m-auto w-[86%] max-w-xl text-white/70" />
       </div>
 
-      <footer className="flex items-center justify-between gap-3 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <footer className="flex items-center justify-between gap-3 p-4"
+      style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
         <Button variant="ghost" onClick={advance} disabled={busy}>
           {t.skip}
         </Button>

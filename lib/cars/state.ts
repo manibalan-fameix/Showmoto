@@ -8,6 +8,7 @@ import { unscopedDb } from "../db/client.ts"
 import { getStorage } from "../storage/index.ts"
 import { isLanded, publishReadiness, type Readiness } from "./readiness.ts"
 import { formatReg } from "../reg.ts"
+import { emptyMarketplaceDetails, marketplaceDetailsSchema, type MarketplaceDetails } from "./marketplace.ts"
 
 export type MediaState = {
   id: string
@@ -37,6 +38,7 @@ export type CarState = {
   shortCode: string
   slug: string
   caption: string | null
+  marketplaceDetails: MarketplaceDetails
   media: MediaState[]
 }
 
@@ -73,6 +75,7 @@ export async function getCarState(dealerId: string, carId: string): Promise<CarS
     shortCode: car.shortCode,
     slug: car.slug,
     caption: car.caption,
+    marketplaceDetails: marketplaceDetailsSchema.catch(emptyMarketplaceDetails()).parse(car.marketplaceDetails ?? {}),
     media: media.map((m) => ({
       id: m.id,
       kind: m.kind,

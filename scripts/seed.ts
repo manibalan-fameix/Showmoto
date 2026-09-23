@@ -26,7 +26,7 @@ const demoDealers = [
     city: "Chennai",
     phone: "+919000000001",
     plan: "starter",
-    theme: { primary: "#0b6b3a", primaryForeground: "#ffffff", accent: "#f5b400", radius: "lg" as const },
+    theme: { primary: "#1d4ed8", primaryForeground: "#ffffff", accent: "#f5b400", radius: "lg" as const },
   },
   {
     slug: "chennai-prime",

@@ -10,7 +10,7 @@ import { copy } from "@/lib/copy"
 
 export const metadata = { title: copy.admin.addCar.title }
 
-const STEPS = new Set(["car", "photos", "price"])
+const STEPS = new Set(["plate", "car", "photos", "marketplace", "price"])
 
 export default async function NewCarPage({ searchParams }: { searchParams: Promise<{ car?: string; step?: string }> }) {
   const ctx = await getDealerContext()

@@ -12,6 +12,8 @@ function createPool() {
 }
 
 const pool = (globalForDb.__pool ??= createPool())
+// Idle-client errors (e.g. database down) must not crash the process.
+pool.on("error", (e: Error) => console.error("pg pool error:", e.message))
 
 /**
  * RAW, UNSCOPED database handle. Tenant and admin code must NOT import this:

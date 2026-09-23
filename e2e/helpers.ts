@@ -29,6 +29,7 @@ export async function signIn(page: Page) {
 
 export async function startCar(page: Page, reg: string) {
   await page.goto("/cars/new")
+  await page.getByTestId("start-new").click()
   await page.getByTestId("plate-file-input").setInputFiles(await jpeg(page, "plate"))
   await page.getByLabel("Registration number").fill(reg)
   await page.getByRole("button", { name: /look up this car/i }).click()

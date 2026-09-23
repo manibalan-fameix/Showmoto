@@ -1,4 +1,4 @@
-# Fameix
+# ShowMoto
 
 White-label used-car listing tool for independent dealers in Chennai. A dealer adds a car from
 their phone in about two minutes and gets a public page under their own brand, a short share link,

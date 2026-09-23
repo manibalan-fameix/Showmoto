@@ -27,12 +27,12 @@ export function createLocalStorage(): StorageAdapter {
     },
     async head(key) {
       try {
-        return { size: (await stat(need(key))).size }
+        return { size: (await stat(/* turbopackIgnore: true */ need(key))).size }
       } catch {
         return null
       }
     },
-    get: async (key) => readFile(need(key)),
+    get: async (key) => readFile(/* turbopackIgnore: true */ need(key)),
     async put(key, body) {
       const p = need(key)
       await mkdir(path.dirname(p), { recursive: true })

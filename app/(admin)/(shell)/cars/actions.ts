@@ -12,6 +12,7 @@ import { createDraftCar, InvalidRegError } from "@/lib/cars/create"
 import { confirmUpload, requestUpload, type MediaError } from "@/lib/cars/media"
 import { getShareKit, publishCar, publishInput, type PublishError, type ShareKit } from "@/lib/cars/publish"
 import { getCarState, type CarState } from "@/lib/cars/state"
+import { marketplaceDetailsSchema, type MarketplaceDetails } from "@/lib/cars/marketplace"
 import { cars } from "@/lib/db/schema"
 import { scopedDb } from "@/lib/db/scoped"
 import { allow } from "@/lib/rate-limit"
@@ -205,7 +206,24 @@ export async function getCarStateAction(carId: string): Promise<{ ok: true; car:
   return car ? { ok: true, car } : fail("not_found")
 }
 
-// ---------- 5. publish ----------
+// ---------- 5. marketplace details ----------
+
+const marketplaceInput = z.object({
+  carId: z.string().uuid(),
+  details: marketplaceDetailsSchema,
+})
+
+export async function saveMarketplaceDetailsAction(input: { carId: string; details: MarketplaceDetails }) {
+  const d = await dealer()
+  if (!d) return fail("unauthorised")
+  const parsed = marketplaceInput.safeParse(input)
+  if (!parsed.success) return fail("invalid")
+  if (!(await getCarState(d.id, parsed.data.carId))) return fail("not_found")
+  await scopedDb(d.id).cars.update({ marketplaceDetails: parsed.data.details }, eq(cars.id, parsed.data.carId))
+  return { ok: true as const, car: await getCarState(d.id, parsed.data.carId) }
+}
+
+// ---------- 6. publish ----------
 
 export async function publishCarAction(input: { carId: string; price: number; km: number }) {
   const d = await dealer()

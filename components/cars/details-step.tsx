@@ -10,6 +10,7 @@ import {
 } from "@/app/(admin)/(shell)/cars/actions"
 import type { RcSummary, VariantSuggestion } from "@/lib/cars/dto"
 import type { CarState } from "@/lib/cars/state"
+import { FooterAction } from "@/components/cars/wizard-shell"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -240,9 +241,11 @@ export function DetailsStep({
         </CardContent>
       </Card>
 
-      <Button size="lg" onClick={async () => { await saveFacts(); onNext() }} disabled={!car.variant}>
-        {copy.admin.addCar.next}
-      </Button>
+      <FooterAction>
+        <Button size="lg" onClick={async () => { await saveFacts(); onNext() }} disabled={!car.variant}>
+          {copy.admin.addCar.next}
+        </Button>
+      </FooterAction>
     </div>
   )
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "cars" ADD COLUMN "marketplace_details" jsonb;

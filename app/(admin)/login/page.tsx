@@ -6,6 +6,8 @@ import { copy } from "@/lib/copy"
 import { auth, isAuthConfigured } from "@/lib/auth"
 import { isDevBypassEnabled } from "@/lib/auth/dev-bypass"
 import { signInWithGoogle } from "@/lib/auth/actions"
+import { defaultLocalLoginEmail, isLocalPasswordLoginEnabled } from "@/lib/auth/local-login"
+import { EmailPasswordForm } from "./email-password-form"
 
 export const metadata = { title: copy.auth.signInTitle }
 // Reads env and session at request time; never prerender.
@@ -14,6 +16,7 @@ export const dynamic = "force-dynamic"
 export default async function LoginPage() {
   const configured = isAuthConfigured()
   const bypass = isDevBypassEnabled()
+  const localPassword = isLocalPasswordLoginEnabled()
   if (configured && (await auth())?.user) redirect("/dashboard")
 
   return (
@@ -24,8 +27,9 @@ export default async function LoginPage() {
           <CardDescription>{copy.auth.signInBody}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {localPassword ? <EmailPasswordForm defaultEmail={defaultLocalLoginEmail()} /> : null}
           <form action={signInWithGoogle}>
-            <Button type="submit" size="lg" className="w-full" disabled={!configured && !bypass}>
+            <Button type="submit" size="lg" variant={localPassword ? "outline" : "default"} className="w-full" disabled={!configured && !bypass}>
               {copy.auth.signInGoogle}
             </Button>
           </form>
