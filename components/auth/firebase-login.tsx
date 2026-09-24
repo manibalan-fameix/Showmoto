@@ -34,7 +34,11 @@ function Notice({ tone, children }: { tone: "error" | "info"; children: React.Re
   )
 }
 
-export function FirebaseLogin({ config }: { config: FirebaseWebConfig }) {
+/**
+ * `testPhones` (development only) are numbers registered under Firebase > Authentication > Phone > "Phone numbers for
+ * testing". For those, app verification is switched off so no reCAPTCHA, SMS or throttling is involved.
+ */
+export function FirebaseLogin({ config, testPhones = [] }: { config: FirebaseWebConfig; testPhones?: string[] }) {
   const router = useRouter()
   const auth = getFirebaseAuth(config)
   const [busy, setBusy] = useState(false)
@@ -97,6 +101,7 @@ export function FirebaseLogin({ config }: { config: FirebaseWebConfig }) {
   const sendCode = () =>
     run(async () => {
       if (!/^[6-9][0-9]{9}$/.test(phone)) throw { code: "auth/invalid-phone-number" }
+      auth.settings.appVerificationDisabledForTesting = testPhones.includes(phone)
       resetRecaptcha()
       const host = document.createElement("div")
       document.getElementById("recaptcha-container")?.appendChild(host)

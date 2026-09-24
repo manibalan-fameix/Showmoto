@@ -21,6 +21,9 @@ export default async function LoginPage() {
   const firebaseConfig = getFirebaseWebConfig()
   const bypass = isDevBypassEnabled()
   const localPassword = isLocalPasswordLoginEnabled()
+  // Development only: numbers registered as Firebase "phone numbers for testing" (comma separated, 10 digits).
+  const testPhones =
+    process.env.NODE_ENV === "development" ? (process.env.FIREBASE_TEST_PHONES ?? "").split(",").map((n) => n.trim()).filter(Boolean) : []
   if (configured && (await auth())?.user) redirect("/dashboard")
 
   return (
@@ -32,7 +35,7 @@ export default async function LoginPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {localPassword ? <EmailPasswordForm defaultEmail={defaultLocalLoginEmail()} /> : null}
-          {configured && firebaseConfig ? <FirebaseLogin config={firebaseConfig} /> : null}
+          {configured && firebaseConfig ? <FirebaseLogin config={firebaseConfig} testPhones={testPhones} /> : null}
           {bypass ? (
             <form action={openDevDemo}>
               <Button type="submit" size="lg" variant="outline" className="w-full">
