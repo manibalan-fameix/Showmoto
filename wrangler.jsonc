@@ -8,6 +8,10 @@
   "vars": {
     "ROOT_DOMAIN": "showmoto.in",
     "AUTH_TRUST_HOST": "true",
+    "FIREBASE_API_KEY": "AIzaSyA6ZzDrrxRERpRRQE3jb8s8jeBjgMI-6yc",
+    "FIREBASE_AUTH_DOMAIN": "showmoto-5e1b2.firebaseapp.com",
+    "FIREBASE_PROJECT_ID": "showmoto-5e1b2",
+    "FIREBASE_APP_ID": "1:366952901411:web:81a62d7f436422d13bfa96",
     "R2_ACCOUNT_ID": "262572defdfe5c699680a2a02db9434b",
     "R2_BUCKET": "showmoto",
     "R2_PUBLIC_URL": "https://pub-7221cd485d6347b9bfa561f64eb7ce5c.r2.dev",
