@@ -36,8 +36,11 @@ const MESSAGES: Record<string, string> = {
 /** Turns a Firebase error into something a dealer can act on. Never shows raw codes. */
 export function friendlyAuthError(error: unknown): string {
   const code = (error as { code?: string })?.code ?? ""
-  if (MESSAGES[code]) return MESSAGES[code]
-  // Unmapped codes are logged so they can be diagnosed from the browser console.
-  console.error("Firebase auth error:", code || error)
-  return process.env.NODE_ENV === "development" && code ? `Something went wrong (${code}).` : "Something went wrong. Please try again."
+  // Firebase's own reason (e.g. "INVALID_APP_CREDENTIAL : ..."), when the server sent one.
+  const server = (error as { customData?: { _serverResponse?: { error?: { message?: string } } } })?.customData?._serverResponse?.error?.message
+  if (process.env.NODE_ENV === "development") console.error("Firebase auth error:", code, server ?? error)
+  if (process.env.NODE_ENV === "development" && (!MESSAGES[code] || code === "auth/invalid-app-credential")) {
+    return `Firebase says: ${code}${server ? ` - ${server}` : ""}`
+  }
+  return MESSAGES[code] ?? "Something went wrong. Please try again."
 }

@@ -86,14 +86,27 @@ export function FirebaseLogin({ config }: { config: FirebaseWebConfig }) {
     return () => clearTimeout(t)
   }, [cooldown])
 
-  useEffect(() => () => verifier.current?.clear(), [])
+  // reCAPTCHA refuses to render twice into one element, so every attempt gets a fresh one.
+  const resetRecaptcha = () => {
+    verifier.current?.clear()
+    verifier.current = null
+    document.getElementById("recaptcha-container")?.replaceChildren()
+  }
+  useEffect(() => resetRecaptcha, [])
 
   const sendCode = () =>
     run(async () => {
       if (!/^[6-9][0-9]{9}$/.test(phone)) throw { code: "auth/invalid-phone-number" }
-      verifier.current?.clear()
-      verifier.current = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" })
-      setConfirmation(await signInWithPhoneNumber(auth, `+91${phone}`, verifier.current))
+      resetRecaptcha()
+      const host = document.createElement("div")
+      document.getElementById("recaptcha-container")?.appendChild(host)
+      verifier.current = new RecaptchaVerifier(auth, host, { size: "invisible" })
+      try {
+        setConfirmation(await signInWithPhoneNumber(auth, `+91${phone}`, verifier.current))
+      } catch (e) {
+        resetRecaptcha() // a verifier cannot be reused after a failed attempt
+        throw e
+      }
       setCode("")
       setCooldown(RESEND_SECONDS)
       setInfo(`We sent a 6-digit code to +91 ${phone}.`)
